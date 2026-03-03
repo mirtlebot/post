@@ -1,0 +1,15 @@
+{
+  "name": "vercel-surl",
+  "version": "1.0.0",
+  "description": "A simple Vercel project",
+  "main": "index.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "redis": "^5.11.0"
+  }
+}
