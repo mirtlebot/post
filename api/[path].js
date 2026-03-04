@@ -12,6 +12,11 @@ function textResponse(res, text) {
   res.status(200).send(text + '\n');
 }
 
+function htmlResponse(res, html) {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(html);
+}
+
 function getToken(req) {
   const auth = req.headers['authorization'] || req.headers['Authorization'];
   if (!auth || !auth.startsWith('Bearer ')) return null;
@@ -38,7 +43,8 @@ export default async function handler(req, res) {
     }
 
     const isURL = storedValue.startsWith('url:');
-    const content = storedValue.substring(isURL ? 4 : 5);
+    const storedType = isURL ? 'url' : storedValue.startsWith('html:') ? 'html' : 'text';
+    const content = storedValue.substring(storedType.length + 1);
 
     // If authenticated, return JSON info instead of redirecting/displaying
     const token = getToken(req);
@@ -47,25 +53,22 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers['host'];
       const domain = `${protocol}://${host}`;
       
-      const result = {
-        surl: `${domain}/${path}`, 
+      return jsonResponse(res, {
+        surl: `${domain}/${path}`,
         path,
-      };
-      
-      if (isURL) {
-        result.url = content;
-      } else {
-        result.text = content.length > 15 ? content.substring(0, 15) + '...' : content;
-      }
-      
-      return jsonResponse(res, result, 200);
+        type: storedType,
+        content: storedType !== 'url' && content.length > 15 ? content.substring(0, 15) + '...' : content,
+      }, 200);
     }
 
     // Not authenticated
-    if (isURL) {
+    if (storedType === 'url') {
       // Redirect to target URL
       res.writeHead(302, { Location: content });
       res.end();
+    } else if (storedType === 'html') {
+      // Render as HTML
+      htmlResponse(res, content);
     } else {
       // Display plain text
       textResponse(res, content);

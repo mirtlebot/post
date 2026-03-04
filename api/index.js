@@ -68,7 +68,7 @@ async function handlePOST(req, res) {
     return jsonResponse(res, { error: 'Invalid JSON body' }, 400);
   }
 
-  const { url: inputContent, ttl } = body;
+  const { url: inputContent, ttl, type: inputType } = body;
   let { path } = body;
 
   if (!path) {
@@ -79,6 +79,11 @@ async function handlePOST(req, res) {
     return jsonResponse(res, { error: '`url` is required' }, 400);
   }
 
+  // Validate explicit type if provided
+  if (inputType !== undefined && !['url', 'text', 'html'].includes(inputType)) {
+    return jsonResponse(res, { error: '`type` must be one of: url, text, html' }, 400);
+  }
+
   // Check if content is too large
   const maxContentSizeKB = parseInt(process.env.MAX_CONTENT_SIZE_KB, 10) || 500;
   const maxContentSizeBytes = maxContentSizeKB * 1024;
@@ -87,27 +92,28 @@ async function handlePOST(req, res) {
     return jsonResponse(res, { error: `Content too large (max ${maxContentSizeKB}KB)` }, 400);
   }
 
-  // Try to parse as URL, if fails, treat as plain text
-  let finalContent = inputContent;
-  let isURL = false;
-  
-  try {
-    new URL(inputContent);
-    // Valid URL with scheme
-    finalContent = inputContent;
-    isURL = true;
-  } catch (e) {
-    // Not a valid URL, treat as plain text
-    isURL = false;
-    finalContent = inputContent;
+  // Determine content type
+  let contentType;
+  if (inputType) {
+    // Explicit type specified
+    contentType = inputType;
+  } else {
+    // Auto-detect: try to parse as URL
+    try {
+      new URL(inputContent);
+      contentType = 'url';
+    } catch (e) {
+      contentType = 'text';
+    }
   }
+
+  const finalContent = inputContent;
 
   const redis = await getRedisClient();
   const key = LINKS_PREFIX + path;
-  
-  // Store metadata to distinguish URL from text
-  const metadata = isURL ? 'url:' : 'text:';
-  const storedValue = metadata + finalContent;
+
+  // Store with type prefix: url: / text: / html:
+  const storedValue = contentType + ':' + finalContent;
   
   // Check if path already exists
   const existing = await redis.get(key);
@@ -139,16 +145,16 @@ async function handlePOST(req, res) {
     expires_in: expiresIn,
   };
   
-  if (isURL) {
+  if (contentType === 'url') {
     result.url = finalContent;
   } else {
     result.text = finalContent.length > 15 ? finalContent.substring(0, 15) + '...' : finalContent;
   }
   
   if (existing) {
-    const existingType = existing.startsWith('url:') ? 'url' : 'text';
-    const existingContent = existing.substring(existingType === 'url' ? 4 : 5);
-    if (existingType === 'text') {
+    const existingType = existing.startsWith('url:') ? 'url' : existing.startsWith('html:') ? 'html' : 'text';
+    const existingContent = existing.substring(existingType.length + 1);
+    if (existingType !== 'url') {
       result.overwritten = existingContent.length > 15 ? existingContent.substring(0, 15) + '...' : existingContent;
     } else {
       result.overwritten = existingContent;
@@ -189,11 +195,11 @@ async function handleDELETE(req, res) {
 
   await redis.del(key);
   
-  const isURL = existing.startsWith('url:');
-  const content = existing.substring(isURL ? 4 : 5);
+  const storedType = existing.startsWith('url:') ? 'url' : existing.startsWith('html:') ? 'html' : 'text';
+  const content = existing.substring(storedType.length + 1);
   
   const result = { deleted: path };
-  if (isURL) {
+  if (storedType === 'url') {
     result.url = content;
   } else {
     result.text = content.length > 15 ? content.substring(0, 15) + '...' : content;
@@ -258,22 +264,20 @@ async function handleGET(req, res) {
       const path = key.slice(LINKS_PREFIX.length);
       const storedValue = await redis.get(key);
       
-      const isURL = storedValue.startsWith('url:');
-      const content = storedValue.substring(isURL ? 4 : 5);
+      const storedType = storedValue.startsWith('url:') ? 'url' : storedValue.startsWith('html:') ? 'html' : 'text';
+      const content = storedValue.substring(storedType.length + 1);
       
-      const item = {
+      const isExport = req.headers['x-export'] === 'true';
+      const displayContent = (storedType !== 'url' && !isExport && content.length > 15)
+        ? content.substring(0, 15) + '...'
+        : content;
+
+      return {
         surl: `${domain}/${path}`,
         path,
+        type: storedType,
+        content: displayContent,
       };
-      
-      if (isURL) {
-        item.url = content;
-      } else {
-        const isExport = req.headers['x-export'] === 'true';
-        item.text = (!isExport && content.length > 15) ? content.substring(0, 15) + '...' : content;
-      }
-      
-      return item;
     })
   );
   

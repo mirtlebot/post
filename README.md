@@ -12,6 +12,7 @@
 ### Pastebin 功能
 - ✅ 分享纯文本、代码片段
 - ✅ 保持文本格式和换行
+- ✅ 支持 HTML 渲染（`type: html`）
 - ✅ 最大支持 100KB 文本
 
 ### 通用功能
@@ -135,27 +136,6 @@ curl -X POST http://localhost:3001/ \
 }
 ```
 
-#### 访问短链（重定向）
-```bash
-curl -L http://localhost:3001/mylink
-# 自动 302 重定向到 https://example.com
-```
-
-#### 查询短链信息（需认证）
-```bash
-curl http://localhost:3001/mylink \
-  -H "Authorization: Bearer your-secret-key"
-```
-
-响应示例：
-```json
-{
-  "surl": "http://localhost:3001/mylink",
-  "path": "mylink",
-  "url": "https://example.com"
-}
-```
-
 #### 创建文本片段（自动生成路径）
 ```bash
 curl -X POST http://localhost:3001/ \
@@ -174,45 +154,67 @@ curl -X POST http://localhost:3001/ \
 }
 ```
 
-> **注意**：`url` 字段用于传递内容，无论是 URL 还是纯文本。如果内容不是有效的 URL（带 scheme），会被当作纯文本处理。
-
-#### 创建代码片段（指定路径）
+#### 创建 HTML 片段（指定 type）
 ```bash
 curl -X POST http://localhost:3001/ \
   -H "Authorization: Bearer your-secret-key" \
   -H "Content-Type: application/json" \
-  -d '{"url":"#!/bin/bash\necho \"Hello\"\ndate","path":"script"}'
+  -d '{"url":"<h1>Hello</h1><p>World</p>","path":"mypage","type":"html"}'
 ```
 
-#### 访问文本片段（直接展示）
+响应示例：
+```json
+{
+  "surl": "http://localhost:3001/mypage",
+  "path": "mypage",
+  "text": "<h1>Hello</h1>...",
+  "expires_in": "never"
+}
+```
+
+> 访问 `http://localhost:3001/mypage` 会直接在浏览器中渲染 HTML。
+
+#### 强制指定内容类型（`type` 字段）
+
+`type` 可选值：`url` | `text` | `html`
+
+| type | 无授权访问行为 |
+|------|--------------|
+| `url` | 302 重定向 |
+| `text` | 返回 `text/plain` |
+| `html` | 返回 `text/html`，浏览器渲染 |
+
+不指定 `type` 时自动识别：能解析为合法 URL 则为 `url`，否则为 `text`。
+
+#### 访问内容（无授权）
 ```bash
+# URL → 302 重定向
+curl -L http://localhost:3001/mylink
+
+# text → 纯文本
 curl http://localhost:3001/script
-# 直接返回纯文本内容（保持换行）
+
+# html → 浏览器渲染
+curl http://localhost:3001/mypage
 ```
 
-输出示例：
-```
-#!/bin/bash
-echo "Hello"
-date
-```
-
-#### 查询文本信息（需认证）
+#### 查询单条信息（需认证）
 ```bash
-curl http://localhost:3001/script \
+curl http://localhost:3001/mylink \
   -H "Authorization: Bearer your-secret-key"
 ```
 
 响应示例：
 ```json
 {
-  "surl": "http://localhost:3001/script",
-  "path": "script",
-  "text": "#!/bin/bash\nech..."
+  "surl": "http://localhost:3001/mylink",
+  "path": "mylink",
+  "type": "url",
+  "content": "https://example.com"
 }
 ```
 
-> **注意**：文本内容会被截断为前 15 个字符 + `...`
+> `text` / `html` 类型的 `content` 会截断为前 15 个字符 + `...`
 
 #### 列出所有短链和文本
 ```bash
@@ -226,15 +228,32 @@ curl http://localhost:3001/ \
   {
     "surl": "http://localhost:3001/mylink",
     "path": "mylink",
-    "url": "https://example.com"
+    "type": "url",
+    "content": "https://example.com"
   },
   {
     "surl": "http://localhost:3001/script",
     "path": "script",
-    "text": "#!/bin/bash\nech..."
+    "type": "text",
+    "content": "#!/bin/bash\nech..."
+  },
+  {
+    "surl": "http://localhost:3001/mypage",
+    "path": "mypage",
+    "type": "html",
+    "content": "<h1>Hello</h1>..."
   }
 ]
 ```
+
+#### 导出所有完整内容（需认证）
+```bash
+curl http://localhost:3001/ \
+  -H "Authorization: Bearer your-secret-key" \
+  -H "X-Export: true"
+```
+
+返回格式同上，但 `text` / `html` 类型的 `content` 不截断。
 
 #### 删除短链或文本
 ```bash
@@ -254,25 +273,21 @@ curl -X DELETE http://localhost:3001/ \
 
 ## 内容类型识别规则
 
-系统会自动识别内容类型：
+`type` 字段可选值：`url` | `text` | `html`
 
-- **URL**：内容包含有效的 URL scheme（`http://`、`https://`、`ftp://`、`mailto:` 等）
-  - 无授权访问 → **302 重定向**
-  - 有授权访问 → 返回 JSON 信息
-  
-- **纯文本**：不包含 URL scheme 的内容（代码、文本、域名等）
-  - 无授权访问 → **直接展示纯文本**（保持换行）
-  - 有授权访问 → 返回 JSON 信息（截断为 15 字符）
+| type | 存储前缀 | 无授权访问行为 | 有授权访问 |
+|------|---------|--------------|-----------|
+| `url` | `url:` | 302 重定向 | 返回 JSON |
+| `text` | `text:` | 返回 `text/plain` | 返回 JSON（截断） |
+| `html` | `html:` | 返回 `text/html`，浏览器渲染 | 返回 JSON（截断） |
+
+**自动识别**（不指定 `type` 时）：
+- 内容能解析为合法 URL（含 scheme）→ `url`
+- 否则 → `text`
 
 **限制**：
-- 文本最大 **100KB**
+- 文本最大 **500KB**（可通过 `MAX_CONTENT_SIZE_KB` 环境变量调整）
 - 超过限制会返回错误
-
-**示例**：
-- `https://google.com` → URL（重定向）
-- `google.com` → 纯文本（展示）
-- `这是中文内容` → 纯文本（展示）
-- `function hello() {}` → 纯文本（展示）
 
 ## 部署到 Vercel
 
@@ -320,13 +335,16 @@ curl -X DELETE http://localhost:3001/ \
 ## 常见问题
 
 **Q: 为什么我的域名没有重定向？**  
-A: 域名（如 `google.com`）没有 URL scheme，会被当作纯文本。请使用完整 URL（如 `https://google.com`）。
+A: 域名（如 `google.com`）没有 URL scheme，会被当作纯文本。请使用完整 URL（如 `https://google.com`），或显式指定 `"type":"url"`。
 
-**Q: 如何让纯文本以 JSON 形式返回？**  
+**Q: 如何让内容以 JSON 形式返回？**  
 A: 添加 `Authorization: Bearer <SECRET_KEY>` 请求头即可。
 
+**Q: 如何渲染 HTML？**  
+A: 创建时指定 `"type":"html"`，访问时浏览器会直接渲染 HTML 内容。
+
 **Q: 文本内容为什么被截断？**  
-A: 为了列表展示和删除响应的简洁性，文本会被截断为前 15 个字符。实际存储的是完整内容。
+A: 为了列表展示的简洁性，`text` / `html` 类型的内容会截断为前 15 个字符。实际存储的是完整内容。使用 `X-Export: true` 可获取完整内容。
 
 **Q: 支持哪些 URL scheme？**  
 A: 所有标准 URL scheme 都支持，包括 `http://`, `https://`, `ftp://`, `mailto:` 等。
