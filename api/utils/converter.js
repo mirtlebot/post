@@ -41,10 +41,11 @@ export function convertMarkdownToHtml(markdown) {
 
     // 使用 GitHub Markdown CSS 样式
     const cssUrl = 'https://cdn.jsdelivr.net/gh/sindresorhus/github-markdown-css/github-markdown.css';
-    const hlCssLight = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css';
-    const hlCssDark = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css';
+    const hlCssLight = 'https://cdn.jsdelivr.net/npm/highlightjs/styles/github.min.css';
+    const hlCssDark = 'https://cdn.jsdelivr.net/npm/highlightjs/styles/github-dark.min.css';
     const darkBg = '#0d1117';
-
+    const toc_js = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.js';
+    const toc_css = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.css';
     return `<!doctype html>
 <html>
 <head>
@@ -54,6 +55,7 @@ export function convertMarkdownToHtml(markdown) {
 <link rel="stylesheet" href="${cssUrl}">
 <link rel="stylesheet" href="${hlCssLight}" media="(prefers-color-scheme: light)">
 <link rel="stylesheet" href="${hlCssDark}" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="${toc_css}">
 <style>
   body {
     box-sizing: border-box;
@@ -82,6 +84,7 @@ export function convertMarkdownToHtml(markdown) {
 <article class="markdown-body">
 ${htmlBody}
 </article>
+<script src="${toc_js}"></script>
 </body>
 </html>`;
   } catch (error) {
