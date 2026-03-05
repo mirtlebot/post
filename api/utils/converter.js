@@ -7,9 +7,23 @@ import { marked } from 'marked';
 import markedAlert from 'marked-alert';
 import markedFootnote from 'marked-footnote';
 import { gfmHeadingId } from "marked-gfm-heading-id";
-// import { markedHighlight } from 'marked-highlight';
-// import hljs from 'highlight.js';
+import { markedHighlight } from 'marked-highlight';
+import hljs from 'highlight.js';
 import qrcode from 'qrcode-terminal';
+
+marked.use(
+  { gfm: true, breaks: false },
+  markedAlert(),
+  markedFootnote(),
+  gfmHeadingId(),
+  markedHighlight({
+    langPrefix: 'hljs language-',
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      return hljs.highlight(code, { language }).value;
+    }
+  })
+);
 
 /**
  * 将 Markdown 转换为完整的 HTML 页面
@@ -23,40 +37,15 @@ import qrcode from 'qrcode-terminal';
  */
 export function convertMarkdownToHtml(markdown) {
   try {
-    // marked.use(
-    //   { gfm: true, breaks: false },
-    //   markedAlert(),
-    //   markedFootnote(),
-    //   gfmHeadingId(),
-    //   markedHighlight({
-    //   langPrefix: 'hljs language-',
-    //   highlight(code, lang) {
-    //     const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-    //     return hljs.highlight(code, { language }).value;
-    //   }
-    //   })
-    // );
-    marked.use(
-      { gfm: true, breaks: false },
-      markedAlert(),
-      markedFootnote(),
-      gfmHeadingId()
-      // markedHighlight({
-      // langPrefix: 'hljs language-',
-      // highlight(code, lang) {
-      //   const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-      //   return hljs.highlight(code, { language }).value;
-      // }
-      // })
-    );
-    const htmlBody = marked.parse(markdown);
+    // 去除 YAML front matter（--- ... ---）
+    const stripped = markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+    const htmlBody = marked.parse(stripped);
 
     // 使用 GitHub Markdown CSS 样式
     const cssUrl = 'https://cdn.jsdelivr.net/gh/sindresorhus/github-markdown-css/github-markdown.css';
-    // const hlCssLight = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github.css';
-    // const hlCssDark = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github-dark.css';
-    // <link rel="stylesheet" href="${hlCssLight}" media="(prefers-color-scheme: light)">
-    // <link rel="stylesheet" href="${hlCssDark}" media="(prefers-color-scheme: dark)">
+    const hlCssLight = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github.css';
+    const hlCssDark = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github-dark.css';
+
     const darkBg = '#0d1117';
     const toc_js = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.js';
     const toc_css = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.css';
@@ -68,6 +57,8 @@ export function convertMarkdownToHtml(markdown) {
 <title></title>
 <link rel="stylesheet" href="${cssUrl}">
 <link rel="stylesheet" href="${toc_css}">
+<link rel="stylesheet" href="${hlCssLight}" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="${hlCssDark}" media="(prefers-color-scheme: dark)">
 <style>
   body {
     box-sizing: border-box;
@@ -144,7 +135,6 @@ export function convertToQrCode(text) {
         return;
       }
 
-      // 添加说明横幅（匹配客户端脚本格式）
       const banner = '📷 Scan this QR code';
       resolve(`${banner}\n\n${qrOutput}`);
     } catch (error) {
