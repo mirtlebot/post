@@ -1,32 +1,4 @@
 #!/bin/sh
-# post - paste & short-URL manager
-# Authors: mirtle, GitHub Copilot
-# Requires: curl, jq
-#           clipboard: pbcopy (macOS) | xclip/xsel (Linux) | pbpaste (macOS read)
-#
-# Usage:
-#   post new [opts] <text...>   Upload text
-#   post new [opts] -f <file>   Upload file contents
-#   post new [opts]             Upload clipboard contents (no -f, no text args, no stdin)
-#   echo "..." | post [new]     Upload from stdin
-#   post ls [path]              List all posts or show one
-#   post export                 Export all posts with full text
-#   post rm <path>              Delete a post
-#   post help | -h | --help     Show this help
-#
-# Options for 'new':
-#   -f, --file <path>              Read content from file
-#   -s, --slug <path>              Custom slug/path (default: auto-generated)
-#   -t, --ttl <minutes>            Expiration time in minutes (default: never)
-#   -u, --update                   Overwrite if slug already exists (PUT instead of POST)
-#   -y, --no-confirm               Skip confirmation prompt
-#   -c, --convert html|md2html|url|text|qrcode
-#                                  Convert/type the content before uploading
-#
-# Environment variables:
-#   POST_HOST    Base endpoint URL (e.g. https://example.com)
-#   POST_TOKEN   Bearer token
-
 set -e
 
 if [ -z "${POST_HOST}" ] || [ -z "${POST_TOKEN}" ]; then
