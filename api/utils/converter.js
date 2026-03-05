@@ -7,8 +7,8 @@ import { marked } from 'marked';
 import markedAlert from 'marked-alert';
 import markedFootnote from 'marked-footnote';
 import { gfmHeadingId } from "marked-gfm-heading-id";
-import { markedHighlight } from 'marked-highlight';
-import hljs from 'highlight.js';
+// import { markedHighlight } from 'marked-highlight';
+// import hljs from 'highlight.js';
 import qrcode from 'qrcode-terminal';
 
 /**
@@ -23,26 +23,38 @@ import qrcode from 'qrcode-terminal';
  */
 export function convertMarkdownToHtml(markdown) {
   try {
+    // marked.use(
+    //   { gfm: true, breaks: true },
+    //   markedAlert(),
+    //   markedFootnote(),
+    //   gfmHeadingId(),
+    //   markedHighlight({
+    //   langPrefix: 'hljs language-',
+    //   highlight(code, lang) {
+    //     const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+    //     return hljs.highlight(code, { language }).value;
+    //   }
+    //   })
+    // );
     marked.use(
       { gfm: true, breaks: true },
       markedAlert(),
       markedFootnote(),
-      gfmHeadingId(),
-      markedHighlight({
-      langPrefix: 'hljs language-',
-      highlight(code, lang) {
-        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language }).value;
-      }
-      })
+      gfmHeadingId()
+      // markedHighlight({
+      // langPrefix: 'hljs language-',
+      // highlight(code, lang) {
+      //   const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+      //   return hljs.highlight(code, { language }).value;
+      // }
+      // })
     );
-
     const htmlBody = marked.parse(markdown);
 
     // 使用 GitHub Markdown CSS 样式
     const cssUrl = 'https://cdn.jsdelivr.net/gh/sindresorhus/github-markdown-css/github-markdown.css';
-    const hlCssLight = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github.css';
-    const hlCssDark = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github-dark.css';
+    // const hlCssLight = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github.css';
+    // const hlCssDark = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github-dark.css';
     const darkBg = '#0d1117';
     const toc_js = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.js';
     const toc_css = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.css';
