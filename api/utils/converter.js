@@ -41,8 +41,8 @@ export function convertMarkdownToHtml(markdown) {
 
     // 使用 GitHub Markdown CSS 样式
     const cssUrl = 'https://cdn.jsdelivr.net/gh/sindresorhus/github-markdown-css/github-markdown.css';
-    const hlCssLight = 'https://cdn.jsdelivr.net/npm/highlightjs/styles/github.min.css';
-    const hlCssDark = 'https://cdn.jsdelivr.net/npm/highlightjs/styles/github-dark.min.css';
+    const hlCssLight = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github.css';
+    const hlCssDark = 'https://cdn.jsdelivr.net/gh/highlightjs/highlight.js/src/styles/github-dark.css';
     const darkBg = '#0d1117';
     const toc_js = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.js';
     const toc_css = 'https://cdn.jsdelivr.net/gh/mirtlecn/public/gfm-toc.css';
