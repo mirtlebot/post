@@ -35,7 +35,10 @@ export default async function handler(req, res) {
 
     // 未认证：按类型响应
     if (type === 'url') {
-      res.writeHead(302, { Location: content });
+      res.writeHead(302, {
+        Location: content,
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+      });
       res.end();
     } else if (type === 'html') {
       htmlResponse(res, content);
