@@ -23,7 +23,7 @@ export function LoginView({ password, onChange, onSubmit, isBusy, error }) {
                   className="grow masked-input"
                   inputMode="text"
                   onChange={(event) => onChange(event.target.value)}
-                  placeholder="Secret key"
+                  placeholder="Enter password"
                   spellCheck={false}
                   type="text"
                   value={password}
