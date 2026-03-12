@@ -10,7 +10,7 @@
 import { getRedisClient } from '../lib/redis.js';
 import { jsonResponse, errorResponse } from '../lib/utils/response.js';
 import { isAuthenticated } from '../lib/utils/auth.js';
-import { LINKS_PREFIX, parseStoredValue } from '../lib/utils/storage.js';
+import { LINKS_PREFIX, parseStoredValue, parseRequestBody, getDomain, previewContent } from '../lib/utils/storage.js';
 import { handleCreate, handleReplace } from '../lib/handlers/create.js';
 import { handleDelete } from '../lib/handlers/remove.js';
 import { handleList } from '../lib/handlers/list.js';
@@ -32,7 +32,10 @@ export default async function handler(req, res) {
         return await handleDelete(req, res);
 
       case 'GET':
-        if (isAuthenticated(req)) return await handleList(req, res);
+        if (isAuthenticated(req)) {
+          if (await handleLookupAuthedFromBody(req, res)) return;
+          return await handleList(req, res);
+        }
         // 未认证：将 '/' 作为普通路径查找
         return await handleRootPath(req, res);
 
@@ -43,6 +46,42 @@ export default async function handler(req, res) {
     console.error('Error:', error);
     return errorResponse(res, { code: 'internal', message: 'Internal server error' }, 500);
   }
+}
+
+async function handleLookupAuthedFromBody(req, res) {
+  let body;
+  try {
+    body = await parseRequestBody(req);
+  } catch {
+    errorResponse(res, { code: 'invalid_request', message: 'Invalid JSON body' }, 400);
+    return true;
+  }
+
+  const hasPath = Object.prototype.hasOwnProperty.call(body, 'path');
+  if (!hasPath) return false;
+
+  const { path } = body;
+  if (!path) {
+    errorResponse(res, { code: 'invalid_request', message: '`path` is required' }, 400);
+    return true;
+  }
+
+  const redis = await getRedisClient();
+  const stored = await redis.get(LINKS_PREFIX + path);
+  if (!stored) {
+    errorResponse(res, { code: 'not_found', message: 'URL not found' }, 404);
+    return true;
+  }
+
+  const { type, content } = parseStoredValue(stored);
+  const isExport = req.headers['x-export'] === 'true';
+  jsonResponse(res, {
+    surl: `${getDomain(req)}/${path}`,
+    path,
+    type,
+    content: isExport ? content : previewContent(type, content),
+  }, 200);
+  return true;
 }
 
 /**

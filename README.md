@@ -12,7 +12,7 @@ Prerequisites:
 npm install
 
 # Configure environment variables
-cp .env.example .env
+cp .env.example .env.local
 
 # Start local server (http://localhost:3000)
 npm start
@@ -28,80 +28,108 @@ Optional: `MAX_CONTENT_SIZE_KB` (default 500), `MAX_FILE_SIZE_MB` (default 10), 
 
 Write operations require the header `Authorization: Bearer <SECRET_KEY>`.
 
+Suggested shell variables:
+
 ```bash
-# POST /  Create an entry (returns 409 if path already exists)
-curl -X POST https://example.com/ \
-  -H "Authorization: Bearer <token>" \
+export POST_BASE_URL="https://example.com"
+export POST_TOKEN="your-secret-key"
+```
+
+```bash
+# Create a short URL or text snippet with JSON.
+# `type` can be omitted for normal URLs, or set to `text` / `html`.
+curl "$POST_BASE_URL" \
+  -X POST \
+  -H "Authorization: Bearer $POST_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://target.com","path":"mylink","ttl":1440}'
-  # url:     target URL or text content (required)
-  # path:    custom path, auto-generated if omitted
-  # type:    url | text | html, auto-detected if omitted
-  # ttl:     expiry time in minutes
-  # convert: md2html | qrcode | html | url | text
+  -d '{
+    "url": "https://target.com",
+    "path": "mylink",
+    "ttl": 1440
+  }'
 
-# PUT /  Create or overwrite (201 if new, 200 if overwritten)
-curl -X PUT https://example.com/ \
-  -H "Authorization: Bearer <token>" \
+# Create rendered HTML from Markdown on write.
+curl "$POST_BASE_URL" \
+  -X POST \
+  -H "Authorization: Bearer $POST_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://new-target.com","path":"mylink"}'
+  -d '{
+    "url": "# Title\n\nHello from Markdown",
+    "path": "doc/readme",
+    "convert": "md2html"
+  }'
 
-# POST /  Upload a binary file (multipart/form-data, stored in S3)
-curl -X POST https://example.com/ \
-  -H "Authorization: Bearer <token>" \
-  -F "file=@photo.jpg" \
-  -F "path=myimg" \
-  -F "ttl=1440"
-  # path is auto-suffixed with the file extension (e.g. myimg → myimg.jpg)
-  # ttl determines the S3 key prefix: 1day / 1week / 1month / 1year / default
+# Upload a file to S3-compatible storage.
+curl "$POST_BASE_URL" \
+  -X POST \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -F "file=@./photo.jpg" \
+  -F "path=uploads/photo"
 
-# DELETE /  Delete an entry (file type is also removed from S3)
-curl -X DELETE https://example.com/ \
-  -H "Authorization: Bearer <token>" \
+# Update an existing entry with PUT.
+curl "$POST_BASE_URL" \
+  -X PUT \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://new-target.com",
+    "path": "mylink"
+  }'
+
+# List all entries.
+curl "$POST_BASE_URL" \
+  -H "Authorization: Bearer $POST_TOKEN"
+
+# Export full content instead of preview.
+# Works for list, single-path lookup, create/update, and delete responses.
+curl "$POST_BASE_URL" \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "x-export: true"
+
+# Read one entry as JSON metadata.
+curl "$POST_BASE_URL" \
+  -X GET \
+  -H "Authorization: Bearer $POST_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"path":"mylink"}'
 
-# GET /  List all entries (requires auth)
-curl https://example.com/ \
-  -H "Authorization: Bearer <token>"
-  # add -H "X-Export: true" to get full untruncated content
+# Read one entry as JSON metadata and export full content.
+curl "$POST_BASE_URL" \
+  -X GET \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "x-export: true" \
+  -d '{"path":"mylink"}'
 
-# GET /:path  Access content (no auth required)
-curl https://example.com/mylink
-  # url  → 302 redirect
-  # text → plain text response
-  # html → rendered in browser
-  # file → streamed proxy download, URL unchanged
-  # authenticated requests always return JSON details
-```
+# Read publicly by path: URL entries redirect, text/html return directly, files stream.
+curl -L "$POST_BASE_URL/mylink"
 
-Response structure:
+# Create and export full content in response.
+curl "$POST_BASE_URL" \
+  -X POST \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "x-export: true" \
+  -d '{"url":"https://target.com","path":"mylink"}'
 
-```json
-{
-  "surl": "https://example.com/mylink",
-  "path": "mylink",
-  "type": "url",
-  "content": "https://target.com",
-  "expires_in": null
-}
+# Delete by path.
+curl "$POST_BASE_URL" \
+  -X DELETE \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"path":"mylink"}'
+
+# Delete and export full content in response.
+curl "$POST_BASE_URL" \
+  -X DELETE \
+  -H "Authorization: Bearer $POST_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "x-export: true" \
+  -d '{"path":"mylink"}'
 ```
 
 ---
 
-## CLI
-
-```bash
-export POST_HOST=https://your-domain.com
-export POST_TOKEN=your-secret-key
-
-post help # get usage instructions
-```
-
----
-
-## License & Credits
+## License
 
 MIT License
-
-© 2026 [Mirtle](https://github.com/mirtle), built with [GitHub Copilot](https://github.com/features/copilot).

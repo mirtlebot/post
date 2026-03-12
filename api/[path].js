@@ -6,9 +6,8 @@
  */
 
 import { getRedisClient } from '../lib/redis.js';
-import { jsonResponse, errorResponse } from '../lib/utils/response.js';
-import { isAuthenticated } from '../lib/utils/auth.js';
-import { LINKS_PREFIX, parseStoredValue, previewContent, getDomain } from '../lib/utils/storage.js';
+import { errorResponse } from '../lib/utils/response.js';
+import { LINKS_PREFIX, parseStoredValue } from '../lib/utils/storage.js';
 import { respondByType } from '../lib/utils/serve.js';
 
 export default async function handler(req, res) {
@@ -24,17 +23,7 @@ export default async function handler(req, res) {
 
     const { type, content } = parseStoredValue(stored);
 
-    // 已认证：返回条目详情，不执行重定向/渲染/代理
-    if (isAuthenticated(req)) {
-      return jsonResponse(res, {
-        surl: `${getDomain(req)}/${path}`,
-        path,
-        type,
-        content: previewContent(type, content),
-      });
-    }
-
-    // 未认证：按类型响应
+    // 统一按公开访问语义处理
     return await respondByType(req, res, { type, content, path, redis });
   } catch (error) {
     console.error('Error:', error);
