@@ -145,14 +145,13 @@ export function CreatePanel(props) {
               <button className="btn btn-ghost btn-xs file-card-close" onClick={composer.reset} type="button">
                 <CloseIcon className="size-4" strokeWidth={2.2} />
               </button>
-              <div className="flex items-start gap-3">
+              <div className="file-card-content">
                 <div className="rounded-2xl bg-base-100 p-3 text-info shadow-sm">
                   <FileBadgeIcon className="size-5" strokeWidth={2.1} />
                 </div>
-                <div className="min-w-0">
-                  <div className="truncate text-lg font-semibold">{composer.fileMeta.name}</div>
-                  <div className="mt-2 flex flex-wrap gap-2 text-sm text-base-content/60">
-                    <span>{composer.fileMeta.type}</span>
+                <div className="file-card-details">
+                  <div className="file-card-name text-lg font-semibold">{composer.fileMeta.name}</div>
+                  <div className="file-card-meta mt-2 text-sm text-base-content/60">
                     <span>{composer.fileMeta.size}</span>
                     <span>File</span>
                   </div>

@@ -86,7 +86,11 @@ body, #root { margin: 0; min-height: 100vh; }
 .composer-textarea::-webkit-scrollbar-track { background: color-mix(in oklab, var(--color-base-content) 7%, transparent); border-radius: 999px; }
 .composer-textarea::-webkit-scrollbar-thumb { background: linear-gradient(180deg, color-mix(in oklab, var(--color-info) 80%, transparent), color-mix(in oklab, var(--color-warning) 80%, transparent)); border: 2px solid color-mix(in oklab, var(--color-base-100) 85%, transparent); border-radius: 999px; }
 .composer-textarea::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, color-mix(in oklab, var(--color-info) 92%, transparent), color-mix(in oklab, var(--color-warning) 92%, transparent)); }
-.file-card { position: relative; display: flex; min-height: 16rem; align-items: center; justify-content: center; border-radius: 1.5rem; background: color-mix(in oklab, var(--color-base-100) 76%, transparent); padding: 1rem; text-align: center; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-base-content) 8%, transparent); }
+.file-card { position: relative; display: flex; min-height: 16rem; align-items: center; justify-content: center; border-radius: 1.5rem; background: color-mix(in oklab, var(--color-base-100) 76%, transparent); padding: 1rem; text-align: center; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-base-content) 8%, transparent); overflow: hidden; }
+.file-card-content { display: flex; max-width: 100%; min-width: 0; align-items: flex-start; gap: .75rem; }
+.file-card-details { min-width: 0; text-align: left; }
+.file-card-name { max-width: min(32rem, calc(100vw - 18rem)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-card-meta { display: flex; flex-wrap: wrap; gap: .5rem; }
 .file-card-close { position: absolute; top: .6rem; right: .6rem; opacity: 0; transition: opacity .2s ease; }
 .group:hover .file-card-close, .file-card-close:focus-visible { opacity: 1; }
 .login-orb { position: absolute; border-radius: 999px; filter: blur(8px); opacity: .95; pointer-events: none; animation: drift 8s ease-in-out infinite; }
@@ -98,4 +102,4 @@ body, #root { margin: 0; min-height: 100vh; }
 @keyframes shake-soft { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
 @keyframes drift { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(0,-16px,0) scale(1.04); } }
 @media (min-width: 1024px) { .toolbar-grid { grid-template-columns: 1.35fr 1fr 1fr 10rem; } .field-action { min-width: 10rem; } }
-@media (max-width: 768px) { .login-card { min-height: auto; } .login-grid { min-height: auto; padding: 2rem; } .login-subtitle { display: none; } .login-corner-meta { position: static; padding: 0 2rem 1.2rem; } .composer-shell { min-height: 15rem; } .composer-editor, .file-card { min-height: 13rem; } .toolbar-grid { grid-template-columns: 1fr; } .field-action, .select-shell, .field-shell-fixed { width: 100%; } .toast.toast-top.toast-end { inset: auto 0 1rem 0; align-items: center; } }
+@media (max-width: 768px) { .login-card { min-height: auto; } .login-grid { min-height: auto; padding: 2rem; } .login-subtitle { display: none; } .login-corner-meta { position: static; padding: 0 2rem 1.2rem; } .composer-shell { min-height: 15rem; } .composer-editor, .file-card { min-height: 13rem; } .file-card-name { max-width: 7.5rem; } .toolbar-grid { grid-template-columns: 1fr; } .field-action, .select-shell, .field-shell-fixed { width: 100%; } .toast.toast-top.toast-end { inset: auto 0 1rem 0; align-items: center; } }

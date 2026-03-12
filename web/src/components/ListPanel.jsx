@@ -7,8 +7,10 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
   const [confirmPath, setConfirmPath] = useState('');
   const [deletingPath, setDeletingPath] = useState('');
   const [copiedPath, setCopiedPath] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const pages = useMemo(() => Math.max(1, Math.ceil(items.length / PAGE_SIZE)), [items.length]);
   const safe = useMemo(() => Math.min(page, pages), [page, pages]);
+  const actionTooltip = isMobile ? 'left' : 'top';
 
   function ttlLabel(ttl) {
     if (ttl == null) return 'null';
@@ -22,6 +24,18 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
     () => items.slice((safe - 1) * PAGE_SIZE, safe * PAGE_SIZE).map((item) => ({ ...item, ttlText: ttlLabel(item.ttl) })),
     [items, safe],
   );
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', sync);
+      return () => media.removeEventListener('change', sync);
+    }
+    media.addListener(sync);
+    return () => media.removeListener(sync);
+  }, []);
 
   useEffect(() => {
     if (confirmPath && !items.some((item) => item.path === confirmPath)) setConfirmPath('');
@@ -108,17 +122,17 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
                 <td className="max-w-md truncate" title={item.content}>{item.content}</td>
                 <td className="overflow-visible">
                   <div className="relative z-20 flex justify-end gap-2 overflow-visible">
-                    <IconButton icon={icons.open} onClick={() => { setConfirmPath(''); window.open(item.surl, '_blank', 'noreferrer'); }} title="Open" tooltip="top" />
+                    <IconButton icon={icons.open} onClick={() => { setConfirmPath(''); window.open(item.surl, '_blank', 'noreferrer'); }} title="Open" tooltip={actionTooltip} />
                     <IconButton
                       className={copiedPath === item.path ? 'text-success' : ''}
                       disabled={copiedPath === item.path}
                       icon={copiedPath === item.path ? icons.check : icons.copy}
                       onClick={() => copyLink(item.path, item.surl)}
                       title={copiedPath === item.path ? 'Copied' : 'Copy'}
-                      tooltip="top"
+                      tooltip={actionTooltip}
                     />
                     {deletingPath === item.path ? (
-                      <IconButton className="text-error opacity-80" disabled icon={icons.refresh} iconClassName="animate-spin" title="Deleting..." tooltip="top" />
+                      <IconButton className="text-error opacity-80" disabled icon={icons.refresh} iconClassName="animate-spin" title="Deleting..." tooltip={actionTooltip} />
                     ) : (
                       <IconButton
                         className={confirmPath === item.path ? 'text-warning hover:bg-warning/10' : 'text-error hover:bg-error/10'}
@@ -127,7 +141,7 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
                         icon={confirmPath === item.path ? icons.check : icons.delete}
                         onClick={() => confirmDelete(item.path)}
                         title={confirmPath === item.path ? 'Delete?' : 'Delete'}
-                        tooltip="top"
+                        tooltip={actionTooltip}
                       />
                     )}
                   </div>

@@ -11,7 +11,6 @@ function getFileMeta(file) {
   return {
     name: file.name,
     size,
-    type: file.type || (file.name.includes('.') ? file.name.split('.').pop()?.toUpperCase() : 'FILE'),
   };
 }
 
