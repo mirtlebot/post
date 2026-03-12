@@ -1,0 +1,37 @@
+import { PAGE_SIZE } from '../config.js';
+import { icons } from '../icons/Icons.jsx';
+import { IconButton } from './IconButton.jsx';
+
+export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
+  const pages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safe = Math.min(page, pages);
+  const rows = items.slice((safe - 1) * PAGE_SIZE, safe * PAGE_SIZE);
+  const ttlLabel = (ttl) => {
+    if (ttl == null) return 'permanent';
+    if (typeof ttl !== 'number' || Number.isNaN(ttl) || ttl <= 0) return 'permanent';
+    if (ttl < 60) return `${Math.round(ttl)}m`;
+    if (ttl < 1440) return `${Math.round(ttl / 60)}h`;
+    return `${Math.round(ttl / 1440)}d`;
+  };
+
+  return (
+    <section className="panel-box">
+      <div className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/55">Links</div>
+      <div className="list-scroll max-h-[30rem] overflow-auto rounded-[1.5rem] border border-base-300/70">
+        <table className="table table-zebra">
+          <thead><tr><th>Path</th><th>Type</th><th>TTL</th><th>Preview</th><th className="text-right">Actions</th></tr></thead>
+          <tbody>
+            {rows.map((item) => (
+              <tr key={item.path}><td>{item.path}</td><td>{item.type}</td><td className="whitespace-nowrap text-base-content/65">{ttlLabel(item.ttl)}</td><td className="max-w-md truncate">{item.content}</td><td><div className="flex justify-end gap-2"><IconButton icon={icons.open} onClick={() => window.open(item.surl, '_blank', 'noreferrer')} title="Open" /><IconButton icon={icons.copy} onClick={() => onCopy(item.surl)} title="Copy" /><IconButton className="text-error hover:bg-error/10" icon={icons.delete} onClick={() => onDelete(item.path)} title="Delete" /></div></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-5 flex justify-center gap-2">
+        <button className="btn btn-sm" disabled={safe <= 1} onClick={() => setPage(safe - 1)}>{'<'}</button>
+        {Array.from({ length: pages }, (_, i) => i + 1).map((n) => <button key={n} className={`btn btn-sm ${n === safe ? 'btn-active' : ''}`} onClick={() => setPage(n)}>{n}</button>)}
+        <button className="btn btn-sm" disabled={safe >= pages} onClick={() => setPage(safe + 1)}>{'>'}</button>
+      </div>
+    </section>
+  );
+}

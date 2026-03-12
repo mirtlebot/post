@@ -1,0 +1,31 @@
+import {
+  Clock3,
+  Copy,
+  File,
+  FileUp,
+  Hash,
+  Link2,
+  LogOut,
+  RefreshCw,
+  SendHorizontal,
+  WandSparkles,
+  Trash2,
+  ExternalLink,
+  X,
+} from 'lucide-react';
+
+export const icons = {
+  close: X,
+  clock: Clock3,
+  copy: Copy,
+  fileBadge: File,
+  file: FileUp,
+  hash: Hash,
+  link: Link2,
+  logout: LogOut,
+  open: ExternalLink,
+  refresh: RefreshCw,
+  send: SendHorizontal,
+  sparkles: WandSparkles,
+  delete: Trash2,
+};

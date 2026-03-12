@@ -6,7 +6,9 @@
 
 import { createServer } from 'http';
 import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, extname, normalize } from 'path';
+import { readFile } from 'fs/promises';
+import { htmlResponse } from './lib/utils/response.js';
 
 // Load .env.local first, fall back to .env
 function loadEnv() {
@@ -49,6 +51,19 @@ const [{ default: handleApiRoot }, { default: handleApiPath }] = await Promise.a
 ]);
 
 const PORT = process.env.PORT || 3000;
+const DIST_DIR = resolve(process.cwd(), 'dist');
+const MIME_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
 
 // Wrap Node.js IncomingMessage/ServerResponse to match the minimal interface
 // that api/index.js and api/[path].js expect (same as Vercel's req/res).
@@ -64,8 +79,58 @@ function wrapRes(res) {
   return res;
 }
 
-createServer((req, res) => {
+async function tryServeAdmin(req, res) {
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const { pathname } = requestUrl;
+
+  if (pathname !== '/admin' && pathname !== '/admin/' && !pathname.startsWith('/admin/')) {
+    return false;
+  }
+
+  const indexPath = resolve(DIST_DIR, 'index.html');
+  if (!existsSync(indexPath)) {
+    htmlResponse(res, `<!doctype html><html><body style="font-family:sans-serif;padding:32px;"><h1>Admin UI not built</h1><p>Run <code>npm run build</code> first, then restart the server.</p></body></html>`, false);
+    return true;
+  }
+
+  if (pathname === '/admin' || pathname === '/admin/') {
+    const html = await readFile(indexPath, 'utf8');
+    res.setHeader('Cache-Control', 'no-store');
+    htmlResponse(res, html, false);
+    return true;
+  }
+
+  const relativePath = pathname.slice('/admin/'.length);
+  const safePath = normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
+  const filePath = resolve(DIST_DIR, safePath);
+
+  if (!filePath.startsWith(DIST_DIR) || !existsSync(filePath)) {
+    const html = await readFile(indexPath, 'utf8');
+    res.setHeader('Cache-Control', 'no-store');
+    htmlResponse(res, html, false);
+    return true;
+  }
+
+  const ext = extname(filePath).toLowerCase();
+  const buffer = await readFile(filePath);
+  res.statusCode = 200;
+  res.setHeader('Content-Type', MIME_TYPES[ext] || 'application/octet-stream');
+  res.setHeader('Cache-Control', ext === '.html' ? 'no-store' : 'public, max-age=31536000, immutable');
+  res.end(buffer);
+  return true;
+}
+
+createServer(async (req, res) => {
   wrapRes(res);
+
+  try {
+    if (await tryServeAdmin(req, res)) return;
+  } catch (error) {
+      console.error('Failed to serve admin UI:', error);
+      res.statusCode = 500;
+      res.end('Internal server error');
+      return;
+  }
 
   // Route: /  →  api/index.js  (all methods)
   if (req.url === '/') {

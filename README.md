@@ -11,6 +11,9 @@ Prerequisites:
 # Install dependencies
 npm install
 
+# Build admin UI
+npm run build
+
 # Configure environment variables
 cp .env.example .env.local
 
@@ -21,6 +24,19 @@ npm start
 Required: `LINKS_REDIS_URL`, `SECRET_KEY`
 
 Optional: `MAX_CONTENT_SIZE_KB` (default 500), `MAX_FILE_SIZE_MB` (default 10), `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_REGION`
+
+## Admin UI
+
+- `GET /admin` 打开前端管理页
+- `/admin/*` 整段路径保留给 GUI 和静态资源，不能创建同名前缀的分享路径
+- 登录口令使用 `SECRET_KEY`
+- 本地开发：
+
+```bash
+npm run dev
+```
+
+前端开发服务器默认在 `http://localhost:5173/admin`，API 仍由本地 `http://localhost:3000` 提供，并通过 Vite 代理转发。
 
 ---
 
