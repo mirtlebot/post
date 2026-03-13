@@ -7,12 +7,28 @@
       "destination": "/admin/index.html"
     },
     {
+      "source": "/admin/assets/:path*",
+      "destination": "/admin/assets/:path*"
+    },
+    {
+      "source": "/api/admin/session",
+      "destination": "/api/admin/session"
+    },
+    {
+      "source": "/api/admin",
+      "destination": "/api/admin"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "/api/:path*"
+    },
+    {
       "source": "/",
       "destination": "/api"
     },
     {
-      "source": "/:path((?!admin(?:/|$)|api(?:/|$)|_vercel(?:/|$)).*)",
-      "destination": "/api/:path*"
+      "source": "/:path(.*)",
+      "destination": "/api/:path"
     }
   ]
 }

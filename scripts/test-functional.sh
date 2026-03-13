@@ -194,6 +194,8 @@ AUTH_HEADER="Authorization: Bearer $SECRET_KEY"
 LONG_PATH="$(printf 'a%.0s' $(seq 1 100))"
 INVALID_PATH='bad[]path'
 SLASH_PATH="$(uniq_path nested)/child.item"
+DOUBLE_SLASH_PATH="$(uniq_path two)/branch/leaf.txt"
+TRIPLE_SLASH_PATH="$(uniq_path three)/branch/deeper/leaf.txt"
 
 CURRENT_STEP="环境可达"
 request GET "$BASE_URL/admin" "" 
@@ -402,6 +404,38 @@ expect_header_contains '^content-type: text/plain; charset=utf-8'
 expect_body_contains 'slash api updated'
 log "公开斜杠路径访问通过"
 
+CURRENT_STEP="API 创建-双层斜杠路径"
+request POST "$BASE_URL" "{\"path\":\"$DOUBLE_SLASH_PATH\",\"url\":\"double slash text\",\"type\":\"text\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 201
+expect_body_contains "\"path\":\"$DOUBLE_SLASH_PATH\""
+add_created_path "$DOUBLE_SLASH_PATH"
+log "API 双层路径创建通过"
+
+CURRENT_STEP="公开访问-双层斜杠路径"
+request GET "$BASE_URL/$DOUBLE_SLASH_PATH" ""
+expect_status 200
+expect_header_contains '^content-type: text/plain; charset=utf-8'
+expect_body_contains 'double slash text'
+log "公开双层路径访问通过"
+
+CURRENT_STEP="API 创建-三层斜杠路径"
+request POST "$BASE_URL" "{\"path\":\"$TRIPLE_SLASH_PATH\",\"url\":\"triple slash text\",\"type\":\"text\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 201
+expect_body_contains "\"path\":\"$TRIPLE_SLASH_PATH\""
+add_created_path "$TRIPLE_SLASH_PATH"
+log "API 三层路径创建通过"
+
+CURRENT_STEP="公开访问-三层斜杠路径"
+request GET "$BASE_URL/$TRIPLE_SLASH_PATH" ""
+expect_status 200
+expect_header_contains '^content-type: text/plain; charset=utf-8'
+expect_body_contains 'triple slash text'
+log "公开三层路径访问通过"
+
 CURRENT_STEP="API 删除-斜杠路径"
 request DELETE "$BASE_URL" "{\"path\":\"$SLASH_PATH\"}" \
   -H "$AUTH_HEADER" \
@@ -411,10 +445,30 @@ expect_body_contains "\"deleted\":\"$SLASH_PATH\""
 remove_created_path "$SLASH_PATH"
 log "API 斜杠路径删除通过"
 
+CURRENT_STEP="API 删除-双层斜杠路径"
+request DELETE "$BASE_URL" "{\"path\":\"$DOUBLE_SLASH_PATH\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 200
+expect_body_contains "\"deleted\":\"$DOUBLE_SLASH_PATH\""
+remove_created_path "$DOUBLE_SLASH_PATH"
+log "API 双层路径删除通过"
+
+CURRENT_STEP="API 删除-三层斜杠路径"
+request DELETE "$BASE_URL" "{\"path\":\"$TRIPLE_SLASH_PATH\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 200
+expect_body_contains "\"deleted\":\"$TRIPLE_SLASH_PATH\""
+remove_created_path "$TRIPLE_SLASH_PATH"
+log "API 三层路径删除通过"
+
 CURRENT_STEP="API 删除后列表不含斜杠路径"
 request GET "$BASE_URL" "" -H "$AUTH_HEADER"
 expect_status 200
 expect_body_not_contains "\"path\":\"$SLASH_PATH\""
+expect_body_not_contains "\"path\":\"$DOUBLE_SLASH_PATH\""
+expect_body_not_contains "\"path\":\"$TRIPLE_SLASH_PATH\""
 log "API 斜杠路径删除校验通过"
 
 PUBLIC_URL_PATH="$(uniq_path public-url)"
