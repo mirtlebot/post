@@ -84,6 +84,15 @@ export function CreatePanel(props) {
     textareaRef.current?.focus();
   }, []);
 
+  function setSelectedFile(file) {
+    composer.setFile(file);
+  }
+
+  function clearSelectedFile() {
+    composer.reset();
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   function openPicker() {
     fileInputRef.current?.click();
   }
@@ -94,7 +103,7 @@ export function CreatePanel(props) {
     globalDragDepthRef.current = 0;
     setGlobalDragging(false);
     setDragging(false);
-    composer.setFile(event.dataTransfer.files?.[0] || null);
+    setSelectedFile(event.dataTransfer.files?.[0] || null);
   }
 
   function onPathChange(event) {
@@ -142,7 +151,7 @@ export function CreatePanel(props) {
         >
           {composer.fileMeta ? (
             <div className="file-card group">
-              <button className="btn btn-ghost btn-xs file-card-close" onClick={composer.reset} type="button">
+              <button className="btn btn-ghost btn-xs file-card-close" onClick={clearSelectedFile} type="button">
                 <CloseIcon className="size-4" strokeWidth={2.2} />
               </button>
               <div className="file-card-content">
@@ -185,7 +194,7 @@ export function CreatePanel(props) {
               )}
             </div>
           )}
-          <input className="hidden" onChange={(e) => composer.setFile(e.target.files?.[0] || null)} ref={fileInputRef} type="file" />
+          <input className="hidden" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} ref={fileInputRef} type="file" />
         </div>
         <div className="toolbar-grid">
           <div className="field-shell field-shell-fixed input input-bordered">
