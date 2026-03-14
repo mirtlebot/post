@@ -462,6 +462,9 @@ expect_body_not_contains "\"path\":\"$SLASH_PATH\""
 log "API 斜杠路径删除校验通过"
 
 REDIRECT_PATH="$(uniq_path redirect)"
+FILE_URL_PATH="$(uniq_path file-url)"
+MAILTO_URL_PATH="$(uniq_path mailto-url)"
+INVALID_URL_PATH="$(uniq_path invalid-url)"
 TEXT_PATH="$(uniq_path text)"
 HTML_PATH="$(uniq_path html)"
 
@@ -475,6 +478,36 @@ request GET "$BASE_URL/$REDIRECT_PATH" ""
 expect_status 302
 expect_location "https://example.com/public"
 log "公开跳转通过"
+
+CURRENT_STEP="公开 file url trim 跳转通过"
+request POST "$BASE_URL" "{\"path\":\"$FILE_URL_PATH\",\"url\":\"  file:///tmp/post-functional.txt  \",\"type\":\"url\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 201
+add_created_path "$FILE_URL_PATH"
+request GET "$BASE_URL/$FILE_URL_PATH" ""
+expect_status 302
+expect_location "file:///tmp/post-functional.txt"
+log "公开 file url trim 跳转通过"
+
+CURRENT_STEP="公开 mailto url 跳转通过"
+request POST "$BASE_URL" "{\"path\":\"$MAILTO_URL_PATH\",\"url\":\"mailto:functional@example.com\",\"type\":\"url\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 201
+add_created_path "$MAILTO_URL_PATH"
+request GET "$BASE_URL/$MAILTO_URL_PATH" ""
+expect_status 302
+expect_location "mailto:functional@example.com"
+log "公开 mailto url 跳转通过"
+
+CURRENT_STEP="公开非法 url 拒绝存储"
+request POST "$BASE_URL" "{\"path\":\"$INVALID_URL_PATH\",\"url\":\" example.com \",\"type\":\"url\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 400
+expect_json_error_message '`url` must be a valid absolute URL with a scheme'
+log "公开非法 url 拒绝存储通过"
 
 CURRENT_STEP="公开 text 展示通过"
 request POST "$BASE_URL" "{\"path\":\"$TEXT_PATH\",\"url\":\"plain text body\",\"type\":\"text\"}" \

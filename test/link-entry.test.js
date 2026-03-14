@@ -7,6 +7,7 @@ import {
 import {
   parseTtlMinutes,
   detectContentType,
+  normalizeUrlContent,
   applyContentConversion,
   writeStoredLink,
 } from '../lib/services/link-entry.js';
@@ -44,8 +45,27 @@ test('parseTtlMinutes handles empty, valid, and invalid values', () => {
 
 test('detectContentType infers url and text', () => {
   assert.equal(detectContentType('https://example.com', undefined), 'url');
+  assert.equal(detectContentType('  mailto:user@example.com  ', undefined), 'url');
   assert.equal(detectContentType('hello', undefined), 'text');
   assert.equal(detectContentType('hello', 'html'), 'html');
+});
+
+test('normalizeUrlContent trims valid scheme urls and rejects invalid ones', () => {
+  assert.equal(normalizeUrlContent('  https://example.com/path?q=1  '), 'https://example.com/path?q=1');
+  assert.equal(normalizeUrlContent('file:///Users/mirtle/test.txt'), 'file:///Users/mirtle/test.txt');
+  assert.equal(normalizeUrlContent('mailto:user@example.com'), 'mailto:user@example.com');
+  assert.equal(normalizeUrlContent('ftp://example.com/file.txt'), 'ftp://example.com/file.txt');
+  assert.equal(normalizeUrlContent('vscode://file/Users/mirtle/Repo/www/Post'), 'vscode://file/Users/mirtle/Repo/www/Post');
+  assert.equal(normalizeUrlContent('javascript:alert(1)'), 'javascript:alert(1)');
+
+  assert.throws(
+    () => normalizeUrlContent('example.com'),
+    /valid absolute URL with a scheme/,
+  );
+  assert.throws(
+    () => normalizeUrlContent('/tmp/test.txt'),
+    /valid absolute URL with a scheme/,
+  );
 });
 
 test('applyContentConversion supports convert branches and failure path', async () => {
