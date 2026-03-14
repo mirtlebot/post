@@ -1,6 +1,6 @@
 ![Logo](logo.webp)
 
-[Go version API server](https://github.com/mirtlecn/post-go) | [CLI Client](https://github.com/mirtlecn/post-cli)
+[Go version API server](https://github.com/mirtlecn/post-go) | [CLI client](https://github.com/mirtlecn/post-cli) | [Skills for AI Agents](https://github.com/mirtlecn/post-cli/tree/master/skills)
 
 # Post — Lightweight File, Text & URL Sharing API & Web UI
 
@@ -114,13 +114,13 @@ curl "$POST_BASE_URL" \
   -d '{"path":"mylink"}'
 ```
 
-## CLI Client
+## CLI client
 
-[CLI Client](https://github.com/mirtlecn/post-cli)
+[CLI client](https://github.com/mirtlecn/post-cli)
 
 ## SKILL for AI Agent
 
-<https://github.com/mirtlecn/post-go/tree/master/skills/>
+<https://github.com/mirtlecn/post-cli/tree/master/skills>
 
 ## Deploy
 
@@ -128,9 +128,10 @@ curl "$POST_BASE_URL" \
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mirtlecn/post&project-name=post&repository-name=post&build-command=npm%20run%20build&env=LINKS_REDIS_URL,SECRET_KEY,ADMIN_KEY,S3_ENDPOINT,S3_ACCESS_KEY_ID,S3_SECRET_ACCESS_KEY,S3_BUCKET_NAME,S3_REGION)
 
-Minimum required:
-- `LINKS_REDIS_URL`
-- `SECRET_KEY`
+Required:
+- `LINKS_REDIS_URL` : 'redis://...' or 'rediss://...' URL for Redis connection
+- `SECRET_KEY` : API token
+- `ADMIN_KEY` : Password for admin GUI login
 
 ### Local
 
