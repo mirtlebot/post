@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiRequest, uploadFile } from '../lib/api.js';
 
-const INITIAL_FORM = { convert: 'none', path: '', title: '', topic: '', ttl: '', url: '' };
+function buildInitialForm(topic = '') {
+  return { convert: 'none', path: '', title: '', topic, ttl: '', url: '' };
+}
 const PATH_SANITIZE_PATTERN = /[^a-zA-Z0-9_.\-()/]/g;
 
 function getFileMeta(file) {
@@ -43,14 +45,22 @@ function buildFileUploadData(form, file) {
   return data;
 }
 
-export function useComposer({ notify, onCreated, topics = [] }) {
+export function useComposer({ notify, onCreated, selectedTopicPath = '', topics = [] }) {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState(null);
-  const [form, setForm] = useState(INITIAL_FORM);
+  const [form, setForm] = useState(buildInitialForm(selectedTopicPath));
   const createFieldChangeHandler = (fieldName) => (event) =>
     setForm((currentForm) => ({ ...currentForm, [fieldName]: event.target.value }));
   const updateFormValue = (fieldName, fieldValue) =>
     setForm((currentForm) => ({ ...currentForm, [fieldName]: fieldValue }));
+
+  useEffect(() => {
+    setForm((currentForm) => (
+      currentForm.topic === selectedTopicPath
+        ? currentForm
+        : { ...currentForm, topic: selectedTopicPath, path: '' }
+    ));
+  }, [selectedTopicPath]);
 
   async function submit(event) {
     event.preventDefault();
@@ -100,7 +110,7 @@ export function useComposer({ notify, onCreated, topics = [] }) {
 
   function reset() {
     setFile(null);
-    setForm(INITIAL_FORM);
+    setForm(buildInitialForm(selectedTopicPath));
   }
 
   function onShortcut(event) {

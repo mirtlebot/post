@@ -40,7 +40,7 @@ export function CreatePanel(props) {
   const CurrentConvertIcon = CONVERT_META[composer.form.convert]?.icon || icons.sparkles;
   const titleVisible = titleOpen || Boolean(composer.form.title);
   const topicPrefix = composer.selectedTopic ? `${composer.selectedTopic.path}/` : '/';
-  const pathPlaceholder = composer.selectedTopic ? 'relative/path (optional)' : 'custom/url/slug';
+  const pathPlaceholder = composer.selectedTopic ? 'relative/path' : 'custom/url/slug';
   const showTitleToggle = !globalDragging;
 
   useEffect(() => {
@@ -128,7 +128,9 @@ export function CreatePanel(props) {
   }
 
   function onTopicChange(event) {
-    composer.updateTopic(event.target.value);
+    const nextTopicPath = event.target.value;
+    composer.updateTopic(nextTopicPath);
+    props.onTopicChange?.(nextTopicPath);
     requestAnimationFrame(() => {
       setTopicOpen(false);
       const select = topicRef.current;

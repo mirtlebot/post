@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../lib/api.js';
 import { sortItems } from '../config.js';
 import { icons } from '../icons/Icons.jsx';
+import { filterItemsByTopic, TOPIC_STORAGE_KEY } from '../lib/topic-filter.js';
 import { useToast } from '../hooks/useToast.js';
 import { CreatePanel } from './CreatePanel.jsx';
 import { IconButton } from './IconButton.jsx';
@@ -14,6 +15,7 @@ export function Dashboard({ onLogout }) {
   const [itemsLoading, setItemsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [result, setResult] = useState(null);
+  const [selectedTopicPath, setSelectedTopicPath] = useState('');
   const { toast, showToast, clearToast } = useToast();
 
   const loadItems = useCallback(async () => {
@@ -30,6 +32,11 @@ export function Dashboard({ onLogout }) {
   useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    const storedTopicPath = window.localStorage.getItem(TOPIC_STORAGE_KEY) || '';
+    setSelectedTopicPath(storedTopicPath);
+  }, []);
 
   const remove = useCallback(async (item) => {
     try {
@@ -66,6 +73,31 @@ export function Dashboard({ onLogout }) {
   }, [loadItems]);
 
   const topics = useMemo(() => items.filter((item) => item.type === 'topic'), [items]);
+  const filteredItems = useMemo(
+    () => filterItemsByTopic(items, selectedTopicPath),
+    [items, selectedTopicPath],
+  );
+
+  useEffect(() => {
+    if (!selectedTopicPath) {
+      window.localStorage.removeItem(TOPIC_STORAGE_KEY);
+      return;
+    }
+
+    const topicExists = topics.some((item) => item.path === selectedTopicPath);
+    if (!topicExists) {
+      setSelectedTopicPath('');
+      window.localStorage.removeItem(TOPIC_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(TOPIC_STORAGE_KEY, selectedTopicPath);
+  }, [selectedTopicPath, topics]);
+
+  const handleTopicChange = useCallback((nextTopicPath) => {
+    setSelectedTopicPath(nextTopicPath);
+    setPage(1);
+  }, []);
 
   return (
     <section className="mx-auto max-w-6xl px-5 py-6">
@@ -77,7 +109,13 @@ export function Dashboard({ onLogout }) {
           <IconButton icon={icons.logout} onClick={onLogout} title="Logout" />
         </div>
       </header>
-      <CreatePanel notify={showToast} onCreated={created} topics={topics} />
+      <CreatePanel
+        notify={showToast}
+        onCreated={created}
+        selectedTopicPath={selectedTopicPath}
+        onTopicChange={handleTopicChange}
+        topics={topics}
+      />
       <div className="my-6">
         <ResultPanel onCopy={copy} result={result} />
       </div>
@@ -100,7 +138,7 @@ export function Dashboard({ onLogout }) {
           </div>
         </section>
       ) : (
-        items.length > 0 && <ListPanel items={items} onCopy={copy} onDelete={remove} page={page} setPage={setPage} />
+        filteredItems.length > 0 && <ListPanel items={filteredItems} onCopy={copy} onDelete={remove} page={page} setPage={setPage} />
       )}
       <ToastLayer onClose={clearToast} toast={toast} />
     </section>
