@@ -1,4 +1,6 @@
 import {
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
   Check,
   ChevronDown,
   Clock3,
@@ -35,6 +37,8 @@ export const icons = {
   send: SendHorizontal,
   sparkles: WandSparkles,
   text: Text,
+  title: ArrowDownWideNarrow,
+  titleCollapse: ArrowUpWideNarrow,
   chevronDown: ChevronDown,
   check: Check,
   delete: Trash2,

@@ -4,26 +4,14 @@
   "rewrites": [
     {
       "source": "/admin",
-      "destination": "/admin/index.html"
-    },
-    {
-      "source": "/admin/assets/:path*",
-      "destination": "/admin/assets/:path*"
-    },
-    {
-      "source": "/api/admin/session",
-      "destination": "/api/admin/session"
-    },
-    {
-      "source": "/api/admin",
-      "destination": "/api/admin"
+      "destination": "/admin/"
     },
     {
       "source": "/",
       "destination": "/api"
     },
     {
-      "source": "/:path(.+)",
+      "source": "/:path((?!admin(?:/|$)).+)",
       "destination": "/api"
     }
   ]

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiRequest } from '../lib/api.js';
 import { sortItems } from '../config.js';
 import { icons } from '../icons/Icons.jsx';
@@ -31,10 +31,12 @@ export function Dashboard({ onLogout }) {
     loadItems();
   }, [loadItems]);
 
-  const remove = useCallback(async (path) => {
+  const remove = useCallback(async (item) => {
     try {
-      await apiRequest({ method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
-      setItems((v) => v.filter((item) => item.path !== path));
+      const body = { path: item.path };
+      if (item.type === 'topic') body.type = 'topic';
+      await apiRequest({ method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      setItems((v) => v.filter((entry) => entry.path !== item.path));
       showToast('success', 'Deleted');
     } catch (error) {
       showToast('error', error.message);
@@ -63,6 +65,8 @@ export function Dashboard({ onLogout }) {
     await loadItems();
   }, [loadItems]);
 
+  const topics = useMemo(() => items.filter((item) => item.type === 'topic'), [items]);
+
   return (
     <section className="mx-auto max-w-6xl px-5 py-6">
       <header className="panel-box mb-6 flex items-center justify-between">
@@ -73,7 +77,7 @@ export function Dashboard({ onLogout }) {
           <IconButton icon={icons.logout} onClick={onLogout} title="Logout" />
         </div>
       </header>
-      <CreatePanel notify={showToast} onCreated={created} />
+      <CreatePanel notify={showToast} onCreated={created} topics={topics} />
       <div className="my-6">
         <ResultPanel onCopy={copy} result={result} />
       </div>

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { apiRequest, uploadFile } from '../lib/api.js';
 
-const INITIAL_FORM = { convert: 'none', path: '', ttl: '', url: '' };
+const INITIAL_FORM = { convert: 'none', path: '', title: '', topic: '', ttl: '', url: '' };
 const PATH_SANITIZE_PATTERN = /[^a-zA-Z0-9_.\-()/]/g;
 
 function getFileMeta(file) {
@@ -26,6 +26,8 @@ function normalizeTtlValue(value) {
 function buildTextRequestBody(form) {
   const body = { url: form.url.trim() };
   if (form.path.trim()) body.path = form.path.trim();
+  if (form.title.trim()) body.title = form.title.trim();
+  if (form.topic) body.topic = form.topic;
   if (form.ttl.trim()) body.ttl = Number(form.ttl.trim());
   if (form.convert !== 'none') body.convert = form.convert;
   return body;
@@ -35,11 +37,13 @@ function buildFileUploadData(form, file) {
   const data = new FormData();
   data.append('file', file);
   if (form.path.trim()) data.append('path', form.path.trim());
+  if (form.title.trim()) data.append('title', form.title.trim());
+  if (form.topic) data.append('topic', form.topic);
   if (form.ttl.trim()) data.append('ttl', form.ttl.trim());
   return data;
 }
 
-export function useComposer({ notify, onCreated }) {
+export function useComposer({ notify, onCreated, topics = [] }) {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState(null);
   const [form, setForm] = useState(INITIAL_FORM);
@@ -81,8 +85,17 @@ export function useComposer({ notify, onCreated }) {
     updateFormValue('path', normalizePathValue(value));
   }
 
+  function updateTitle(value) {
+    updateFormValue('title', value.slice(0, 120));
+  }
+
   function updateTtl(value) {
     updateFormValue('ttl', normalizeTtlValue(value));
+  }
+
+  function updateTopic(value) {
+    updateFormValue('topic', value);
+    updateFormValue('path', '');
   }
 
   function reset() {
@@ -98,7 +111,13 @@ export function useComposer({ notify, onCreated }) {
   }
 
   const fileMeta = getFileMeta(file);
-  const canSubmit = Boolean(file || form.url.trim()) && !busy;
+  const selectedTopic = useMemo(
+    () => topics.find((item) => item.path === form.topic) || null,
+    [form.topic, topics],
+  );
+  const requiresExplicitPath = Boolean(form.topic);
+  const hasValidPath = requiresExplicitPath ? Boolean(form.path.trim()) : true;
+  const canSubmit = Boolean(file || form.url.trim()) && hasValidPath && !busy;
 
   return {
     busy,
@@ -107,11 +126,15 @@ export function useComposer({ notify, onCreated }) {
     file,
     fileMeta,
     form,
+    requiresExplicitPath,
+    selectedTopic,
     onShortcut,
     reset,
     setFile,
     submit,
     updatePath,
+    updateTitle,
+    updateTopic,
     updateFormValue,
     updateTtl,
   };

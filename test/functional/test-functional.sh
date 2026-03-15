@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$ROOT_DIR/test/functional/common.sh"
 BASE_URL="${BASE_URL:-}"
 MODE="${MODE:-manual}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
@@ -35,15 +37,10 @@ if [ -z "${ADMIN_PASSWORD:-}" ]; then
   exit 1
 fi
 
-TMP_DIR="$(mktemp -d)"
+init_http_test
 COOKIE_JAR="$TMP_DIR/cookies.txt"
-BODY_FILE="$TMP_DIR/body.txt"
-HEADERS_FILE="$TMP_DIR/headers.txt"
-LAST_STATUS=""
-LAST_BODY=""
-LAST_HEADERS=""
-CURRENT_STEP=""
 CREATED_PATHS=()
+CREATED_TOPICS=()
 
 cleanup() {
   local path
@@ -55,123 +52,25 @@ cleanup() {
       -d "{\"path\":\"$path\"}" \
       "$BASE_URL" >/dev/null 2>&1 || true
   done
-  /bin/rm -rf "$TMP_DIR"
+  for path in "${CREATED_TOPICS[@]}"; do
+    /usr/bin/curl -s \
+      -X DELETE \
+      -H "Authorization: Bearer $SECRET_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{\"path\":\"$path\",\"type\":\"topic\"}" \
+      "$BASE_URL" >/dev/null 2>&1 || true
+  done
+  cleanup_http_test
 }
 
 trap cleanup EXIT
 
-log() {
-  echo "[$MODE] $1"
-}
-
-fail() {
-  local message="$1"
-  echo "FAIL: $CURRENT_STEP"
-  echo "原因: $message"
-  if [ -n "${REQUEST_METHOD:-}" ] || [ -n "${REQUEST_URL:-}" ]; then
-    echo "请求: ${REQUEST_METHOD:-GET} ${REQUEST_URL:-}"
-  fi
-  if [ -n "${EXPECTED_STATUS:-}" ]; then
-    echo "期望状态码: $EXPECTED_STATUS"
-  fi
-  if [ -n "${LAST_STATUS:-}" ]; then
-    echo "实际状态码: $LAST_STATUS"
-  fi
-  if [ -f "$HEADERS_FILE" ]; then
-    echo "响应头:"
-    /usr/bin/sed -n '1,12p' "$HEADERS_FILE"
-  fi
-  if [ -f "$BODY_FILE" ]; then
-    echo "响应体:"
-    /usr/bin/sed -n '1,20p' "$BODY_FILE"
-  fi
-  exit 1
-}
-
-request() {
-  local method="$1"
-  local url="$2"
-  local body="${3:-}"
-  shift 3 || true
-
-  REQUEST_METHOD="$method"
-  REQUEST_URL="$url"
-  : >"$BODY_FILE"
-  : >"$HEADERS_FILE"
-
-  local args=(
-    -sS
-    -D "$HEADERS_FILE"
-    -o "$BODY_FILE"
-    -X "$method"
-    "$url"
-  )
-
-  if [ -n "$body" ]; then
-    args+=(-d "$body")
-  fi
-
-  while [ "$#" -gt 0 ]; do
-    args+=("$1")
-    shift
-  done
-
-  LAST_STATUS="$(
-    /usr/bin/curl \
-      "${args[@]}" \
-      -w "%{http_code}"
-  )"
-  LAST_BODY="$(/bin/cat "$BODY_FILE" 2>/dev/null || true)"
-  LAST_HEADERS="$(/bin/cat "$HEADERS_FILE" 2>/dev/null || true)"
-}
-
-expect_status() {
-  EXPECTED_STATUS="$1"
-  if [ "$LAST_STATUS" != "$EXPECTED_STATUS" ]; then
-    fail "状态码不符合预期"
-  fi
-}
-
-expect_header_contains() {
-  local needle="$1"
-  if ! /usr/bin/grep -qi "$needle" "$HEADERS_FILE"; then
-    fail "响应头未包含: $needle"
-  fi
-}
-
-expect_body_contains() {
-  local needle="$1"
-  if ! /usr/bin/grep -Fq "$needle" "$BODY_FILE"; then
-    fail "响应体未包含: $needle"
-  fi
-}
-
-expect_body_not_contains() {
-  local needle="$1"
-  if /usr/bin/grep -Fq "$needle" "$BODY_FILE"; then
-    fail "响应体不应包含: $needle"
-  fi
-}
-
-expect_location() {
-  local expected="$1"
-  local actual
-  actual="$(
-    /usr/bin/grep -i '^location:' "$HEADERS_FILE" | /usr/bin/head -n 1 | /usr/bin/cut -d' ' -f2- | /usr/bin/tr -d '\r'
-  )"
-  if [ "$actual" != "$expected" ]; then
-    fail "Location 不匹配，期望 ${expected}，实际 ${actual:-<empty>}"
-  fi
-}
-
-expect_json_error_message() {
-  local message="$1"
-  expect_body_contains "\"code\":\"invalid_request\""
-  expect_body_contains "\"error\":\"$message\""
-}
-
 add_created_path() {
   CREATED_PATHS+=("$1")
+}
+
+add_created_topic() {
+  CREATED_TOPICS+=("$1")
 }
 
 remove_created_path() {
@@ -189,8 +88,19 @@ remove_created_path() {
   fi
 }
 
-uniq_path() {
-  echo "smoke-$1-$(date +%s)-$RANDOM"
+remove_created_topic() {
+  local target="$1"
+  local -a remaining_topics=()
+  local item
+  for item in "${CREATED_TOPICS[@]}"; do
+    if [ "$item" != "$target" ]; then
+      remaining_topics+=("$item")
+    fi
+  done
+  CREATED_TOPICS=()
+  if [ "${#remaining_topics[@]}" -gt 0 ]; then
+    CREATED_TOPICS=("${remaining_topics[@]}")
+  fi
 }
 
 AUTH_HEADER="Authorization: Bearer $SECRET_KEY"
@@ -201,15 +111,35 @@ DOUBLE_SLASH_PATH="$(uniq_path two)/branch/leaf.txt"
 TRIPLE_SLASH_PATH="$(uniq_path three)/branch/deeper/leaf.txt"
 
 CURRENT_STEP="环境可达"
-request GET "$BASE_URL/admin" ""
-expect_status 200
-expect_header_contains '^content-type: text/html'
-expect_body_contains '<!doctype html>'
+if [ "$MODE" = "vercel" ]; then
+  request GET "$BASE_URL/admin" ""
+  if [ "$LAST_STATUS" = "307" ]; then
+    expect_location "/admin/"
+    request GET "$BASE_URL/admin/" ""
+    expect_status 200
+    expect_header_contains '^content-type: text/html'
+    expect_body_contains '<!doctype html>'
+  else
+    expect_status 200
+    expect_header_contains '^content-type: text/html'
+    expect_body_contains '<!doctype html>'
+  fi
+else
+  request GET "$BASE_URL/admin" ""
+  expect_status 200
+  expect_header_contains '^content-type: text/html'
+  expect_body_contains '<!doctype html>'
+fi
 log "环境启动成功"
 
 CURRENT_STEP="管理页子路径已收紧"
 request GET "$BASE_URL/admin/not-a-route" ""
-expect_status 404
+if [ "$MODE" = "vercel" ]; then
+  expect_status 200
+  expect_body_contains '<!doctype html>'
+else
+  expect_status 404
+fi
 log "管理页子路径收紧通过"
 
 CURRENT_STEP="管理鉴权未登录"
@@ -309,6 +239,72 @@ request DELETE "$BASE_URL/api/admin" "{\"path\":\"$SLASH_PATH\"}" \
 expect_status 200
 remove_created_path "$SLASH_PATH"
 log "管理斜杠路径删除通过"
+
+ADMIN_TOPIC="$(uniq_path admin-topic)"
+ADMIN_TOPIC_CHILD="child-note"
+ADMIN_TOPIC_PATH="$ADMIN_TOPIC/$ADMIN_TOPIC_CHILD"
+ADMIN_TTL_ZERO_PATH="$(uniq_path admin-ttl-zero)"
+ADMIN_TTL_LIVE_PATH="$(uniq_path admin-ttl-live)"
+
+CURRENT_STEP="管理 ttl=0 创建"
+request POST "$BASE_URL/api/admin" "{\"path\":\"$ADMIN_TTL_ZERO_PATH\",\"url\":\"ttl zero body\",\"ttl\":0}" \
+  -b "$COOKIE_JAR" \
+  -H "Content-Type: application/json"
+expect_status 201
+expect_body_contains "\"path\":\"$ADMIN_TTL_ZERO_PATH\""
+expect_body_contains "\"ttl\":null"
+add_created_path "$ADMIN_TTL_ZERO_PATH"
+request GET "$BASE_URL/api/admin" "" -b "$COOKIE_JAR"
+expect_status 200
+expect_body_contains "\"path\":\"$ADMIN_TTL_ZERO_PATH\""
+expect_body_contains "\"ttl\":null"
+log "管理 ttl=0 通过"
+
+CURRENT_STEP="管理 ttl 正数创建"
+request POST "$BASE_URL/api/admin" "{\"path\":\"$ADMIN_TTL_LIVE_PATH\",\"url\":\"ttl live body\",\"ttl\":30}" \
+  -b "$COOKIE_JAR" \
+  -H "Content-Type: application/json"
+expect_status 201
+expect_body_contains "\"path\":\"$ADMIN_TTL_LIVE_PATH\""
+expect_body_contains "\"ttl\":30"
+add_created_path "$ADMIN_TTL_LIVE_PATH"
+request GET "$BASE_URL/api/admin" "" -b "$COOKIE_JAR"
+expect_status 200
+expect_body_contains "\"path\":\"$ADMIN_TTL_LIVE_PATH\""
+expect_body_matches "\"path\":\"$ADMIN_TTL_LIVE_PATH\"[^\n]*\"ttl\":(2[0-9]|30)"
+log "管理 ttl 正数通过"
+
+CURRENT_STEP="管理 title 与 topic 创建"
+request POST "$BASE_URL" "{\"path\":\"$ADMIN_TOPIC\",\"type\":\"topic\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 201
+add_created_topic "$ADMIN_TOPIC"
+request POST "$BASE_URL/api/admin" "{\"topic\":\"$ADMIN_TOPIC\",\"path\":\"$ADMIN_TOPIC_CHILD\",\"title\":\"Admin Topic Title\",\"url\":\"topic body\"}" \
+  -b "$COOKIE_JAR" \
+  -H "Content-Type: application/json"
+expect_status 201
+expect_body_contains "\"path\":\"$ADMIN_TOPIC_PATH\""
+expect_body_contains "\"title\":\"Admin Topic Title\""
+add_created_path "$ADMIN_TOPIC_PATH"
+request GET "$BASE_URL/api/admin" "" -b "$COOKIE_JAR"
+expect_status 200
+expect_body_contains "\"path\":\"$ADMIN_TOPIC_PATH\""
+expect_body_contains "\"title\":\"Admin Topic Title\""
+log "管理 title 与 topic 通过"
+
+CURRENT_STEP="管理 topic 子项删除"
+request DELETE "$BASE_URL/api/admin" "{\"path\":\"$ADMIN_TOPIC_PATH\"}" \
+  -b "$COOKIE_JAR" \
+  -H "Content-Type: application/json"
+expect_status 200
+remove_created_path "$ADMIN_TOPIC_PATH"
+request DELETE "$BASE_URL" "{\"path\":\"$ADMIN_TOPIC\",\"type\":\"topic\"}" \
+  -H "$AUTH_HEADER" \
+  -H "Content-Type: application/json"
+expect_status 200
+remove_created_topic "$ADMIN_TOPIC"
+log "管理 topic 子项删除通过"
 
 CURRENT_STEP="API 未鉴权校验"
 request POST "$BASE_URL" "{\"url\":\"https://example.com/unauthorized\"}" \

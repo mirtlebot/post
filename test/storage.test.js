@@ -9,18 +9,22 @@ import {
 } from '../lib/utils/storage.js';
 
 test('buildStoredValue stores typed values', () => {
-  assert.equal(buildStoredValue('url', 'https://example.com'), 'url:https://example.com');
+  assert.equal(
+    buildStoredValue({ type: 'url', content: 'https://example.com', title: 'Greeting' }),
+    '{"type":"url","content":"https://example.com","title":"Greeting"}',
+  );
 });
 
-test('parseStoredValue reads known prefixes and fallback text', () => {
-  assert.deepEqual(parseStoredValue('html:<h1>Hello</h1>'), {
+test('parseStoredValue reads stored JSON values', () => {
+  assert.deepEqual(parseStoredValue('{"type":"html","content":"<h1>Hello</h1>","title":"Hello"}'), {
     type: 'html',
     content: '<h1>Hello</h1>',
+    title: 'Hello',
   });
-  assert.deepEqual(parseStoredValue('plain text'), {
-    type: 'text',
-    content: 'plain text',
-  });
+});
+
+test('parseStoredValue rejects non-JSON stored values', () => {
+  assert.throws(() => parseStoredValue('plain text'));
 });
 
 test('previewContent keeps url intact and truncates text', () => {

@@ -22,18 +22,26 @@ export function CreatePanel(props) {
   const [globalDragging, setGlobalDragging] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [selectOpen, setSelectOpen] = useState(false);
+  const [topicOpen, setTopicOpen] = useState(false);
+  const [titleOpen, setTitleOpen] = useState(false);
   const globalDragDepthRef = useRef(0);
   const fileInputRef = useRef(null);
   const selectRef = useRef(null);
+  const topicRef = useRef(null);
   const textareaRef = useRef(null);
   const CloseIcon = icons.close;
   const FileBadgeIcon = icons.fileBadge;
   const UploadIcon = icons.file;
   const BusyIcon = icons.refresh;
-  const PathIcon = icons.hash;
   const TtlIcon = icons.clock;
   const CaretIcon = icons.chevronDown;
+  const TitleIcon = icons.title;
+  const TitleCollapseIcon = icons.titleCollapse;
   const CurrentConvertIcon = CONVERT_META[composer.form.convert]?.icon || icons.sparkles;
+  const titleVisible = titleOpen || Boolean(composer.form.title);
+  const topicPrefix = composer.selectedTopic ? `${composer.selectedTopic.path}/` : '/';
+  const pathPlaceholder = composer.selectedTopic ? 'relative/path' : 'custom/url/slug';
+  const showTitleToggle = !globalDragging;
 
   useEffect(() => {
     function onWindowDragEnter(event) {
@@ -84,6 +92,10 @@ export function CreatePanel(props) {
     textareaRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (composer.form.title || composer.form.topic) setTitleOpen(true);
+  }, [composer.form.title, composer.form.topic]);
+
   function setSelectedFile(file) {
     composer.setFile(file);
   }
@@ -115,6 +127,15 @@ export function CreatePanel(props) {
     });
   }
 
+  function onTopicChange(event) {
+    composer.updateTopic(event.target.value);
+    requestAnimationFrame(() => {
+      setTopicOpen(false);
+      const select = topicRef.current;
+      if (select && document.activeElement === select) select.blur();
+    });
+  }
+
   return (
     <section className="panel-box composer-panel">
       <div className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-base-content/55">New</div>
@@ -139,36 +160,70 @@ export function CreatePanel(props) {
           }}
           onDrop={onDrop}
         >
-          {composer.fileMeta ? (
-            <div className="file-card group">
-              <button className="btn btn-ghost btn-xs file-card-close" onClick={clearSelectedFile} type="button">
-                <CloseIcon className="size-4" strokeWidth={2.2} />
+          <div className={`composer-title-row ${titleVisible ? 'composer-title-row-open' : ''} ${showTitleToggle ? '' : 'composer-title-row-hidden'}`}>
+            {titleVisible ? (
+              <>
+                <span className="composer-title-label">Title:</span>
+                <input
+                  className="input input-ghost composer-title-inline-input"
+                  maxLength={120}
+                  onChange={(event) => composer.updateTitle(event.target.value)}
+                  placeholder="describe this post in short worlds"
+                  value={composer.form.title}
+                />
+              </>
+            ) : null}
+          </div>
+          {showTitleToggle ? (
+            <div className="tooltip tooltip-left tooltip-layer composer-title-tooltip" data-tip={titleVisible ? 'Hide' : 'Add a title'}>
+              <button
+                className={`btn btn-ghost btn-xs composer-title-icon ${titleVisible ? 'composer-title-icon-open' : ''}`}
+                onClick={() => {
+                  if (titleVisible) {
+                    composer.updateTitle('');
+                    setTitleOpen(false);
+                    return;
+                  }
+                  setTitleOpen(true);
+                }}
+                type="button"
+              >
+                {titleVisible ? <TitleCollapseIcon className="size-[0.95rem]" strokeWidth={1.9} /> : <TitleIcon className="size-[0.95rem]" strokeWidth={1.9} />}
               </button>
-              <div className="file-card-content">
-                <div className="rounded-2xl bg-base-100 p-3 text-info shadow-sm">
-                  <FileBadgeIcon className="size-5" strokeWidth={2.1} />
-                </div>
-                <div className="file-card-details">
-                  <div className="file-card-name text-lg font-semibold">{composer.fileMeta.name}</div>
-                  <div className="file-card-meta mt-2 text-sm text-base-content/60">
-                    <span>{composer.fileMeta.size}</span>
-                    <span>File</span>
+            </div>
+          ) : null}
+          {composer.fileMeta ? (
+            <div className={`composer-file-stage ${titleVisible ? 'composer-file-stage-with-title' : ''}`}>
+              <div className="file-card">
+                <div className="file-card-content">
+                  <div className="tooltip tooltip-top tooltip-layer" data-tip="Remove">
+                    <button className="file-card-icon-button" onClick={clearSelectedFile} type="button">
+                      <FileBadgeIcon className="file-card-icon file-card-icon-file size-5" strokeWidth={2.1} />
+                      <CloseIcon className="file-card-icon file-card-icon-remove size-5" strokeWidth={2.1} />
+                    </button>
+                  </div>
+                  <div className="file-card-details">
+                    <div className="file-card-name text-lg font-semibold">{composer.fileMeta.name}</div>
+                    <div className="file-card-meta mt-2 text-sm text-base-content/60">
+                      <span>{composer.fileMeta.size}</span>
+                      <span>File</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="composer-editor">
+            <div className={`composer-editor ${titleVisible ? 'composer-editor-with-title' : ''}`}>
               <textarea
                 ref={textareaRef}
-                className={`textarea textarea-ghost composer-textarea ${globalDragging ? 'composer-textarea-hidden' : ''}`}
+                className={`textarea textarea-ghost composer-textarea ${titleVisible ? 'composer-textarea-with-title' : 'composer-textarea-with-title-icon'} ${globalDragging ? 'composer-textarea-hidden' : ''}`}
                 onChange={composer.createFieldChangeHandler('url')}
                 onKeyDown={composer.onShortcut}
                 placeholder=""
                 value={composer.form.url}
               />
               {!composer.form.url.trim() && !globalDragging && (
-                <div className="composer-hint">
+                <div className={`composer-hint ${titleVisible ? 'composer-hint-shifted' : ''}`}>
                   <span>Input texts or </span>
                   <button className="composer-hint-upload" onClick={openPicker} type="button">
                     upload a file
@@ -188,13 +243,31 @@ export function CreatePanel(props) {
         </div>
         <div className="toolbar-grid">
           <div className="field-shell field-shell-fixed input input-bordered">
-            <PathIcon className="size-4 opacity-60" strokeWidth={2} />
+            <div className={`path-prefix-shell ${topicOpen ? 'path-prefix-shell-open' : ''}`}>
+              {topicPrefix ? <span className="path-prefix-label" aria-hidden="true">{topicPrefix}</span> : null}
+              <select
+                ref={topicRef}
+                className="select path-prefix-select"
+                onBlur={() => setTopicOpen(false)}
+                onChange={onTopicChange}
+                onFocus={() => setTopicOpen(true)}
+                onPointerDown={() => setTopicOpen(true)}
+                value={composer.form.topic}
+              >
+                <option value="">/</option>
+                {props.topics.map((topic) => (
+                  <option key={topic.path} value={topic.path}>
+                    {topic.path}/
+                  </option>
+                ))}
+              </select>
+            </div>
             <input
-              className="grow"
+              className="grow path-input"
               maxLength={99}
               onChange={(event) => composer.updatePath(event.target.value)}
               pattern={PATH_PATTERN}
-              placeholder="custom/url/slug"
+              placeholder={pathPlaceholder}
               title="1-99 chars: a-z A-Z 0-9 - _ . / ( )"
               value={composer.form.path}
             />
@@ -204,11 +277,11 @@ export function CreatePanel(props) {
             <input
               className="grow"
               inputMode="numeric"
-              min={1}
+              min={0}
               onChange={(event) => composer.updateTtl(event.target.value)}
               pattern="[0-9]*"
               placeholder="1440"
-              title="TTL in minutes, positive integer"
+              title="TTL in minutes, 0 for never expire"
               type="text"
               value={composer.form.ttl}
             />

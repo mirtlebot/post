@@ -13,8 +13,8 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
   const actionTooltip = isMobile ? 'left' : 'top';
 
   function ttlLabel(ttl) {
-    if (ttl == null) return 'null';
-    if (typeof ttl !== 'number' || Number.isNaN(ttl) || ttl <= 0) return 'null';
+    if (ttl == null) return 'never';
+    if (typeof ttl !== 'number' || Number.isNaN(ttl) || ttl <= 0) return 'never';
     if (ttl < 60) return `${Math.round(ttl)}m`;
     if (ttl < 1440) return `${Math.round(ttl / 60)}h`;
     return `${Math.round(ttl / 1440)}d`;
@@ -79,7 +79,9 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
     }
     setDeletingPath(path);
     try {
-      await onDelete(path);
+      const item = items.find((entry) => entry.path === path);
+      if (!item) return;
+      await onDelete(item);
     } finally {
       setDeletingPath('');
       setConfirmPath('');
@@ -111,7 +113,12 @@ export function ListPanel({ items, onCopy, onDelete, page, setPage }) {
             {rows.map((item) => (
               <tr key={item.path}>
                 <td className="w-[14rem] max-w-[14rem]">
-                  <span className="block truncate" title={item.path}>{item.path}</span>
+                  <span className="block truncate font-medium" title={item.path}>{item.path}</span>
+                  {item.title ? (
+                    <span className="mt-1 block truncate text-xs text-base-content/55" title={item.title}>
+                      {item.title}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="w-[8rem] max-w-[8rem]">
                   <span className="block truncate" title={item.type}>{item.type}</span>

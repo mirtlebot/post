@@ -45,3 +45,21 @@ test('handleCreate rejects invalid explicit url content', async () => {
   assert.equal(response.statusCode, 400);
   assert.match(response.body, /valid absolute URL with a scheme/);
 });
+
+test('handleCreate rejects decimal ttl before touching redis', async () => {
+  const response = createResponse();
+
+  await handleCreate(createJsonRequest({ url: 'hello', type: 'text', ttl: 1.5 }), response);
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body, /`ttl` must be a natural number/);
+});
+
+test('handleCreate rejects string ttl before touching redis', async () => {
+  const response = createResponse();
+
+  await handleCreate(createJsonRequest({ url: 'hello', type: 'text', ttl: '10' }), response);
+
+  assert.equal(response.statusCode, 400);
+  assert.match(response.body, /`ttl` must be a natural number/);
+});
