@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { icons } from '../icons/Icons.jsx';
 import { useComposer } from '../hooks/useComposer.js';
+import { getImageFileFromClipboard } from '../lib/clipboard.js';
 
 const PATH_PATTERN = '[A-Za-z0-9_.\\/\\(\\)\\-]{1,99}';
 const CONVERT_META = {
@@ -118,6 +119,16 @@ export function CreatePanel(props) {
     setSelectedFile(event.dataTransfer.files?.[0] || null);
   }
 
+  function onPaste(event) {
+    const imageFile = getImageFileFromClipboard(event.clipboardData);
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+    setSelectedFile(imageFile);
+  }
+
   function onConvertChange(event) {
     composer.createFieldChangeHandler('convert')(event);
     requestAnimationFrame(() => {
@@ -221,6 +232,7 @@ export function CreatePanel(props) {
                 className={`textarea textarea-ghost composer-textarea ${titleVisible ? 'composer-textarea-with-title' : 'composer-textarea-with-title-icon'} ${globalDragging ? 'composer-textarea-hidden' : ''}`}
                 onChange={composer.createFieldChangeHandler('url')}
                 onKeyDown={composer.onShortcut}
+                onPaste={onPaste}
                 placeholder=""
                 value={composer.form.url}
               />
