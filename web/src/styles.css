@@ -28,7 +28,9 @@ body, #root { margin: 0; min-height: 100vh; }
 .path-prefix-shell-open, .path-prefix-shell:hover { color: color-mix(in oklab, var(--color-base-content) 88%, transparent); background: color-mix(in oklab, var(--color-base-content) 9%, transparent); }
 .path-prefix-shell-disabled { margin-right: 0; background: color-mix(in oklab, var(--color-base-content) 5%, transparent); color: color-mix(in oklab, var(--color-base-content) 38%, transparent); cursor: not-allowed; pointer-events: none; }
 .path-prefix-shell-disabled:hover { color: color-mix(in oklab, var(--color-base-content) 38%, transparent); background: color-mix(in oklab, var(--color-base-content) 5%, transparent); }
-.path-prefix-label { max-width: 13rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .94rem; }
+.path-prefix-label { display: inline-flex; align-items: center; max-width: 13rem; min-width: 0; font-weight: 600; font-size: .94rem; }
+.path-prefix-label-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.path-prefix-label-slash { flex: 0 0 auto; }
 .path-prefix-select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .path-input { min-width: 0; }
 .path-input-disabled { padding: 0 !important; opacity: 0; pointer-events: none; }

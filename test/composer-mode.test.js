@@ -7,6 +7,7 @@ import {
   buildRestoredForm,
   buildTextRequestBody,
   canSubmitComposerForm,
+  formatTopicLabel,
   getComposerUiState,
   normalizeTopicNameValue,
 } from '../web/src/lib/composer-mode.js';
@@ -14,6 +15,11 @@ import {
 test('normalizeTopicNameValue matches path rules, strips newlines, and rejects a leading slash', () => {
   assert.equal(normalizeTopicNameValue(' /anime/\ncastle? '), 'anime/castle');
   assert.equal(normalizeTopicNameValue('/'), '');
+});
+
+test('formatTopicLabel keeps a trailing slash while truncating long topic labels', () => {
+  assert.equal(formatTopicLabel('anime'), 'anime/');
+  assert.equal(formatTopicLabel('12345678901234567890'), '12345678901234…/');
 });
 
 test('buildTextRequestBody emits topic mutation payload for topic mode', () => {

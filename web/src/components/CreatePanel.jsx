@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { icons } from '../icons/Icons.jsx';
 import { useComposer } from '../hooks/useComposer.js';
-import { getComposerUiState, TOPIC_CREATE_TYPE } from '../lib/composer-mode.js';
+import { formatTopicLabel, getComposerUiState, TOPIC_CREATE_TYPE } from '../lib/composer-mode.js';
 import { getImageFileFromClipboard } from '../lib/clipboard.js';
 import { computeSelectMenuPosition } from '../lib/select-menu-position.js';
 
@@ -54,6 +54,10 @@ export function CreatePanel(props) {
   const TitleCollapseIcon = icons.titleCollapse;
   const currentConvertMeta = getConvertMeta(composer.form.convert);
   const CurrentConvertIcon = currentConvertMeta.icon;
+  const topicPrefixLabel = composer.isTopicMode
+    ? '/'
+    : formatTopicLabel(composer.selectedTopic?.path || '');
+  const topicPrefixLabelBody = topicPrefixLabel === '/' ? '' : topicPrefixLabel.slice(0, -1);
   const uiState = getComposerUiState({
     form: composer.form,
     selectedTopic: composer.selectedTopic,
@@ -404,7 +408,12 @@ export function CreatePanel(props) {
               aria-disabled={composer.isTopicMode}
               className={`path-prefix-shell ${topicOpen ? 'path-prefix-shell-open' : ''} ${composer.isTopicMode ? 'path-prefix-shell-disabled' : ''}`}
             >
-              {topicPrefix ? <span className="path-prefix-label" aria-hidden="true">{topicPrefix}</span> : null}
+              {topicPrefix ? (
+                <span className="path-prefix-label" aria-hidden="true" title={topicPrefix}>
+                  <span className="path-prefix-label-text">{topicPrefixLabelBody}</span>
+                  <span className="path-prefix-label-slash">/</span>
+                </span>
+              ) : null}
               {composer.isTopicMode ? null : (
                 <select
                   ref={topicRef}
@@ -417,8 +426,8 @@ export function CreatePanel(props) {
                 >
                   <option value="">/</option>
                   {props.topics.map((topic) => (
-                    <option key={topic.path} value={topic.path}>
-                      {topic.path}/
+                    <option key={topic.path} title={`${topic.path}/`} value={topic.path}>
+                      {formatTopicLabel(topic.path)}
                     </option>
                   ))}
                 </select>

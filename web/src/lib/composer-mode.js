@@ -1,4 +1,5 @@
 export const TOPIC_CREATE_TYPE = 'topic';
+const TOPIC_LABEL_MAX_CHARS = 16;
 
 const PATH_SANITIZE_PATTERN = /[^a-zA-Z0-9_.\-()/]/g;
 
@@ -20,6 +21,13 @@ export function normalizeTtlValue(value) {
 
 export function normalizeTopicNameValue(value) {
   return normalizePathValue(value.replace(/[\r\n]+/g, '')).replace(/^\/+/, '');
+}
+
+export function formatTopicLabel(path, maxChars = TOPIC_LABEL_MAX_CHARS) {
+  if (!path) return '/';
+  const suffixedPath = `${path}/`;
+  if (suffixedPath.length <= maxChars) return suffixedPath;
+  return `${suffixedPath.slice(0, Math.max(1, maxChars - 2))}…/`;
 }
 
 export function buildTopicModeForm() {
