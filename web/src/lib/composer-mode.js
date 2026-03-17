@@ -55,10 +55,12 @@ export function buildRestoredForm(snapshot, fallbackTopic = '') {
 
 export function buildTextRequestBody(form) {
   if (isTopicCreateType(form.convert)) {
-    return {
+    const body = {
       path: normalizeTopicNameValue(form.url.trim()),
       type: TOPIC_CREATE_TYPE,
     };
+    if (form.title.trim()) body.title = form.title.trim();
+    return body;
   }
 
   const body = { url: form.url.trim() };
@@ -100,8 +102,8 @@ export function getComposerUiState({
     editorPlaceholder: topicMode ? 'Input a valid topic name' : '',
     pathInputVisible: !topicMode,
     pathPlaceholder: selectedTopic ? 'relative/path' : 'custom/url/slug',
-    showTitleToggle: !globalDragging && !topicMode,
-    titleVisible: !topicMode && (titleOpen || Boolean(form.title)),
+    showTitleToggle: !globalDragging,
+    titleVisible: titleOpen || Boolean(form.title),
     topicPrefix: topicMode ? '/' : (selectedTopic ? `${selectedTopic.path}/` : '/'),
     ttlDisabled: topicMode,
     ttlPlaceholder: 'never expires',

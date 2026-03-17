@@ -6,9 +6,12 @@ import {
   createTopic,
   deleteTopic,
   deleteTopicItem,
+  getTopicDisplayTitle,
   getTopicItemsKey,
   rebuildTopicIndex,
+  refreshTopic,
   resolveTopicPath,
+  resolveTopicDisplayTitle,
   writeTopicItem,
 } from '../lib/services/topic-store.js';
 import { buildStoredValue, parseStoredValue } from '../lib/utils/storage.js';
@@ -117,17 +120,57 @@ class FakeRedis {
   }
 }
 
-test('createTopic writes topic home and placeholder member', async () => {
+test('resolveTopicDisplayTitle prefers stored title and falls back to topic path', () => {
+  assert.equal(resolveTopicDisplayTitle('anime', { type: 'topic', title: 'Anime Archive' }), 'Anime Archive');
+  assert.equal(resolveTopicDisplayTitle('anime', { type: 'topic', title: '' }), 'Anime');
+  assert.equal(resolveTopicDisplayTitle('anime', { type: 'text', title: 'Ignored' }), 'Anime');
+  assert.equal(resolveTopicDisplayTitle('anime', null), 'Anime');
+});
+
+test('createTopic writes topic home, fallback title, and placeholder member', async () => {
   const redis = new FakeRedis();
 
   await createTopic(redis, 'anime');
 
   const storedTopic = parseStoredValue(await redis.get('surl:anime'));
   assert.equal(storedTopic.type, 'topic');
-  assert.equal(storedTopic.title, 'anime');
+  assert.equal(storedTopic.title, '');
+  assert.equal(await getTopicDisplayTitle(redis, 'anime'), 'Anime');
   assert.deepEqual(redis.sortedSets.get(getTopicItemsKey('anime')), [
     { value: TOPIC_PLACEHOLDER_MEMBER, score: 0 },
   ]);
+});
+
+test('createTopic persists an explicit title', async () => {
+  const redis = new FakeRedis();
+
+  await createTopic(redis, 'anime', { title: 'Anime Archive', titleProvided: true });
+
+  const storedTopic = parseStoredValue(await redis.get('surl:anime'));
+  assert.equal(storedTopic.title, 'Anime Archive');
+  assert.equal(await getTopicDisplayTitle(redis, 'anime'), 'Anime Archive');
+});
+
+test('refreshTopic preserves an existing title when title is omitted', async () => {
+  const redis = new FakeRedis();
+  await createTopic(redis, 'anime', { title: 'Anime Archive', titleProvided: true });
+
+  await refreshTopic(redis, 'anime');
+
+  const storedTopic = parseStoredValue(await redis.get('surl:anime'));
+  assert.equal(storedTopic.title, 'Anime Archive');
+  assert.equal(await getTopicDisplayTitle(redis, 'anime'), 'Anime Archive');
+});
+
+test('refreshTopic can clear an existing title back to topic path', async () => {
+  const redis = new FakeRedis();
+  await createTopic(redis, 'anime', { title: 'Anime Archive', titleProvided: true });
+
+  await refreshTopic(redis, 'anime', { title: '', titleProvided: true });
+
+  const storedTopic = parseStoredValue(await redis.get('surl:anime'));
+  assert.equal(storedTopic.title, '');
+  assert.equal(await getTopicDisplayTitle(redis, 'anime'), 'Anime');
 });
 
 test('resolveTopicPath prefers the longest topic prefix', async () => {
@@ -354,7 +397,7 @@ test('deleteTopic removes only topic home and topic index', async () => {
 
   assert.deepEqual(deletedTopic, {
     type: 'topic',
-    title: 'anime',
+    title: '',
     content: '1',
   });
   assert.equal(await redis.get('surl:anime'), null);

@@ -39,7 +39,7 @@ test('buildTopicIndexMarkdown sorts by updatedAt and writes full dates inline', 
 });
 
 test('buildTopicIndexMarkdown uses full path fallback and type marks', () => {
-  const markdown = buildTopicIndexMarkdown('anime', 'anime', [
+  const markdown = buildTopicIndexMarkdown('anime', 'Anime', [
     {
       path: 'notes/howl-visual',
       fullPath: 'anime/notes/howl-visual',

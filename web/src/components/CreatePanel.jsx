@@ -133,7 +133,6 @@ export function CreatePanel(props) {
 
   useEffect(() => {
     if (composer.isTopicMode) {
-      setTitleOpen(false);
       setTtlFocused(false);
       return;
     }
@@ -257,7 +256,7 @@ export function CreatePanel(props) {
         });
       }
       composer.enterTopicMode();
-      setTitleOpen(false);
+      setTitleOpen(true);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }

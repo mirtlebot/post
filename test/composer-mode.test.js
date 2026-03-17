@@ -26,7 +26,7 @@ test('buildTextRequestBody emits topic mutation payload for topic mode', () => {
   const form = {
     ...buildInitialForm('nested/topic'),
     convert: TOPIC_CREATE_TYPE,
-    title: 'Ignored',
+    title: 'Anime Archive',
     ttl: '1440',
     topic: 'nested/topic',
     path: 'ignored/path',
@@ -36,6 +36,7 @@ test('buildTextRequestBody emits topic mutation payload for topic mode', () => {
   assert.deepEqual(buildTextRequestBody(form), {
     path: 'anime/castle',
     type: TOPIC_CREATE_TYPE,
+    title: 'Anime Archive',
   });
 });
 
@@ -145,8 +146,8 @@ test('getComposerUiState exposes topic mode UI constraints', () => {
       editorPlaceholder: 'Input a valid topic name',
       pathInputVisible: false,
       pathPlaceholder: 'relative/path',
-      showTitleToggle: false,
-      titleVisible: false,
+      showTitleToggle: true,
+      titleVisible: true,
       topicPrefix: '/',
       ttlDisabled: true,
       ttlPlaceholder: 'never expires',

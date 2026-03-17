@@ -296,10 +296,11 @@ expect_body_matches "\"path\":\"$ADMIN_TTL_LIVE_PATH\"[^\n]*\"ttl\":(2[0-9]|30)"
 log "管理 ttl 正数通过"
 
 CURRENT_STEP="管理 title 与 topic 创建"
-request POST "$BASE_URL" "{\"path\":\"$ADMIN_TOPIC\",\"type\":\"topic\"}" \
+request POST "$BASE_URL" "{\"path\":\"$ADMIN_TOPIC\",\"type\":\"topic\",\"title\":\"Admin Topic Home\"}" \
   -H "$AUTH_HEADER" \
   -H "Content-Type: application/json"
 expect_status 201
+expect_body_contains "\"title\":\"Admin Topic Home\""
 add_created_topic "$ADMIN_TOPIC"
 request POST "$BASE_URL/api/admin" "{\"topic\":\"$ADMIN_TOPIC\",\"path\":\"$ADMIN_TOPIC_CHILD\",\"title\":\"Admin Topic Title\",\"url\":\"topic body\"}" \
   -b "$COOKIE_JAR" \
@@ -312,6 +313,8 @@ request GET "$BASE_URL/api/admin" "" -b "$COOKIE_JAR"
 expect_status 200
 expect_body_contains "\"path\":\"$ADMIN_TOPIC_PATH\""
 expect_body_contains "\"title\":\"Admin Topic Title\""
+expect_body_contains "\"path\":\"$ADMIN_TOPIC\""
+expect_body_contains "\"title\":\"Admin Topic Home\""
 log "管理 title 与 topic 通过"
 
 CURRENT_STEP="管理 topic 子项删除"

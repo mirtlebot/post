@@ -35,7 +35,10 @@ STORAGE_ORPHAN_PATH="$STORAGE_TOPIC_PATH/orphan"
 STORAGE_TOPIC_ITEMS_KEY="topic:$STORAGE_TOPIC_PATH:items"
 
 RENDER_TOPIC_PATH="render-topic-$(date +%s)-$$"
+RENDER_TOPIC_TITLE="Render Topic Archive"
+RENDER_TOPIC_UPDATED_TITLE="Render Topic Archive Updated"
 RENDER_HTML_ITEM_PATH="$RENDER_TOPIC_PATH/howl-visual"
+RENDER_UPDATED_HTML_ITEM_PATH="$RENDER_TOPIC_PATH/moving-castle"
 RENDER_URL_ITEM_PATH="$RENDER_TOPIC_PATH/notes/reference-link"
 RENDER_TEXT_ITEM_PATH="$RENDER_TOPIC_PATH/castle-notes"
 RENDER_AUTO_ITEM_GREP='\"surl\":\"http://localhost:[0-9]+/render-topic-[^\"]+/[a-z0-9]{5}\"'
@@ -65,6 +68,7 @@ cleanup() {
     "$STORAGE_ENTRY_PATH" \
     "$STORAGE_ORPHAN_PATH" \
     "$RENDER_HTML_ITEM_PATH" \
+    "$RENDER_UPDATED_HTML_ITEM_PATH" \
     "$RENDER_URL_ITEM_PATH" \
     "$RENDER_TEXT_ITEM_PATH" \
     "$READ_TEXT_PATH" \
@@ -351,7 +355,9 @@ TOPIC_REDIS_VALUE="$(redis-cli -n "$REDIS_DB" GET "surl:$STORAGE_TOPIC_PATH")"
 TOPIC_REDIS_TYPE="$(redis-cli -n "$REDIS_DB" TYPE "$STORAGE_TOPIC_ITEMS_KEY")"
 TOPIC_REDIS_ZRANGE="$(redis-cli -n "$REDIS_DB" ZRANGE "$STORAGE_TOPIC_ITEMS_KEY" 0 -1 WITHSCORES)"
 expect_redis_contains "$TOPIC_REDIS_VALUE" '"type":"topic"'
-expect_redis_contains "$TOPIC_REDIS_VALUE" "\"title\":\"$STORAGE_TOPIC_PATH\""
+if printf '%s' "$TOPIC_REDIS_VALUE" | /usr/bin/grep -Fq '"title":'; then
+  fail "默认 topic Redis 值不应持久化 title 字段"
+fi
 expect_equals "$TOPIC_REDIS_TYPE" "zset"
 expect_equals "$TOPIC_REDIS_ZRANGE" $'__topic_placeholder__\n0'
 log "storage topic Redis 初始化通过"
@@ -424,17 +430,18 @@ log "重建 storage topic adopt orphan 通过"
 
 # Rendering behavior
 CURRENT_STEP="创建 render topic"
-request POST "$BASE_URL" "{\"path\":\"$RENDER_TOPIC_PATH\",\"type\":\"topic\"}" \
+request POST "$BASE_URL" "{\"path\":\"$RENDER_TOPIC_PATH\",\"type\":\"topic\",\"title\":\"$RENDER_TOPIC_TITLE\"}" \
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Content-Type: application/json"
 expect_status 201
+expect_body_contains "\"title\":\"$RENDER_TOPIC_TITLE\""
 log "创建 render topic 通过"
 
 CURRENT_STEP="空 render topic 公开页渲染"
 request GET "$BASE_URL/$RENDER_TOPIC_PATH"
 expect_status 200
-expect_body_contains "<title>$RENDER_TOPIC_PATH</title>"
-expect_body_contains "<div style=\"font-size: 1.3em; font-weight: bold\">$(printf '%s' "$RENDER_TOPIC_PATH" | awk '{print toupper(substr($0, 1, 1)) substr($0, 2)}')</div>"
+expect_body_contains "<title>$RENDER_TOPIC_TITLE</title>"
+expect_body_contains "<div style=\"font-size: 1.3em; font-weight: bold\">$RENDER_TOPIC_TITLE</div>"
 log "空 render topic 公开页渲染通过"
 
 CURRENT_STEP="创建 render topic 条目"
@@ -466,22 +473,49 @@ request GET "$BASE_URL/$RENDER_HTML_ITEM_PATH"
 expect_status 200
 expect_body_contains "<title>Howl Visual Draft</title>"
 expect_body_contains "href=\"/$RENDER_TOPIC_PATH\""
-expect_body_contains "<div style=\"font-size: 1.25em; font-weight: bold\">$(printf '%s' "$RENDER_TOPIC_PATH" | awk '{print toupper(substr($0, 1, 1)) substr($0, 2)}')</div>"
+expect_body_contains "<div style=\"font-size: 1.25em; font-weight: bold\">$RENDER_TOPIC_TITLE</div>"
 expect_body_contains "<strong>Home</strong>"
 expect_body_contains "/  <span style=\"color: #666;\">Howl Visual Draft</span>"
 expect_body_not_contains "katex"
 expect_body_not_contains "mathjax"
 log "render md2html 公开页渲染通过"
 
+CURRENT_STEP="更新 render topic title"
+request PUT "$BASE_URL" "{\"path\":\"$RENDER_TOPIC_PATH\",\"type\":\"topic\",\"title\":\"$RENDER_TOPIC_UPDATED_TITLE\"}" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json"
+expect_status 200
+expect_body_contains "\"title\":\"$RENDER_TOPIC_UPDATED_TITLE\""
+log "更新 render topic title 通过"
+
+CURRENT_STEP="更新 title 后新 md2html 使用新 topic title"
+request POST "$BASE_URL" "{\"topic\":\"$RENDER_TOPIC_PATH\",\"path\":\"moving-castle\",\"url\":\"# Moving Castle\\n\\nHello\",\"type\":\"md2html\",\"title\":\"Moving Castle\"}" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json"
+expect_status 201
+request GET "$BASE_URL/$RENDER_UPDATED_HTML_ITEM_PATH"
+expect_status 200
+expect_body_contains "<div style=\"font-size: 1.25em; font-weight: bold\">$RENDER_TOPIC_UPDATED_TITLE</div>"
+log "更新 title 后新 md2html 使用新 topic title 通过"
+
+CURRENT_STEP="旧 md2html 不追溯更新 topic title"
+request GET "$BASE_URL/$RENDER_HTML_ITEM_PATH"
+expect_status 200
+expect_body_contains "<div style=\"font-size: 1.25em; font-weight: bold\">$RENDER_TOPIC_TITLE</div>"
+expect_body_not_contains "<div style=\"font-size: 1.25em; font-weight: bold\">$RENDER_TOPIC_UPDATED_TITLE</div>"
+log "旧 md2html 不追溯更新 topic title 通过"
+
 CURRENT_STEP="render topic 首页渲染"
 request GET "$BASE_URL/$RENDER_TOPIC_PATH"
 expect_status 200
-expect_body_contains "<title>$RENDER_TOPIC_PATH</title>"
-expect_body_contains "<div style=\"font-size: 1.3em; font-weight: bold\">$(printf '%s' "$RENDER_TOPIC_PATH" | awk '{print toupper(substr($0, 1, 1)) substr($0, 2)}')</div>"
+expect_body_contains "<title>$RENDER_TOPIC_UPDATED_TITLE</title>"
+expect_body_contains "<div style=\"font-size: 1.3em; font-weight: bold\">$RENDER_TOPIC_UPDATED_TITLE</div>"
 expect_body_contains "<span style=\"color: #666;\">Home</span>"
 expect_body_contains "$CURRENT_YEAR"
 expect_body_contains "Howl Visual Draft"
 expect_body_contains "href=\"/$RENDER_HTML_ITEM_PATH\""
+expect_body_contains "Moving Castle"
+expect_body_contains "href=\"/$RENDER_UPDATED_HTML_ITEM_PATH\""
 expect_body_contains "Castle Notes"
 expect_body_contains "☰ · $CURRENT_DATE"
 expect_body_contains "href=\"/$RENDER_TOPIC_PATH/notes/reference-link\""
