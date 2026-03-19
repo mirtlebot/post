@@ -21,6 +21,16 @@ CURRENT_MM_DD="$(date -u +%m-%d)"
 CURRENT_DATE="$(date -u +%F)"
 UPLOAD_PATH="upload-file-$(date +%s)-$$"
 UPLOAD_FILE_PATH="${UPLOAD_PATH}.md"
+UPLOAD_OCTET_TXT_PATH="upload-octet-text-$(date +%s)-$$"
+UPLOAD_OCTET_TXT_FILE_PATH="${UPLOAD_OCTET_TXT_PATH}.txt"
+UPLOAD_OCTET_PDF_PATH="upload-octet-pdf-$(date +%s)-$$"
+UPLOAD_OCTET_PDF_FILE_PATH="${UPLOAD_OCTET_PDF_PATH}.pdf"
+UPLOAD_TRUSTED_TXT_PATH="upload-trusted-text-$(date +%s)-$$"
+UPLOAD_TRUSTED_TXT_FILE_PATH="${UPLOAD_TRUSTED_TXT_PATH}.txt"
+UPLOAD_SNIFFED_PDF_PATH="upload-sniffed-pdf-$(date +%s)-$$"
+UPLOAD_SNIFFED_PDF_FILE_PATH="$UPLOAD_SNIFFED_PDF_PATH"
+UPLOAD_UNKNOWN_PATH="upload-unknown-$(date +%s)-$$"
+UPLOAD_UNKNOWN_FILE_PATH="$UPLOAD_UNKNOWN_PATH"
 
 ALIAS_TEXT_PATH="api-alias-$(date +%s)-$$"
 TEXT_PATH="api-text-$(date +%s)-$$"
@@ -91,7 +101,17 @@ cleanup() {
     "$TTL_TOPIC_CONFLICT_PATH" \
     "$TTL_TOPIC_ITEM_PATH" \
     "$UPLOAD_PATH" \
-    "$UPLOAD_FILE_PATH"
+    "$UPLOAD_FILE_PATH" \
+    "$UPLOAD_OCTET_TXT_PATH" \
+    "$UPLOAD_OCTET_TXT_FILE_PATH" \
+    "$UPLOAD_OCTET_PDF_PATH" \
+    "$UPLOAD_OCTET_PDF_FILE_PATH" \
+    "$UPLOAD_TRUSTED_TXT_PATH" \
+    "$UPLOAD_TRUSTED_TXT_FILE_PATH" \
+    "$UPLOAD_SNIFFED_PDF_PATH" \
+    "$UPLOAD_SNIFFED_PDF_FILE_PATH" \
+    "$UPLOAD_UNKNOWN_PATH" \
+    "$UPLOAD_UNKNOWN_FILE_PATH"
   do
     /usr/bin/curl -s \
       -X DELETE \
@@ -220,6 +240,79 @@ else
   expect_equals "$FILE_CACHE_EXISTS" "0"
   expect_equals "$FILE_META_CACHE_EXISTS" "0"
   log "文件上传、公开读取与缓存清理通过"
+fi
+
+CURRENT_STEP="文件上传 MIME 归一化"
+TEXT_UPLOAD_FILE="$TMP_DIR/upload-octet.txt"
+PDF_UPLOAD_FILE="$TMP_DIR/upload-octet.pdf"
+SNIFFED_PDF_UPLOAD_FILE="$TMP_DIR/upload-sniffed-pdf"
+UNKNOWN_UPLOAD_FILE="$TMP_DIR/upload-unknown"
+printf 'octet text body\n' >"$TEXT_UPLOAD_FILE"
+printf '%%PDF-1.7\n%%mime sniff\n' >"$PDF_UPLOAD_FILE"
+printf '%%PDF-1.7\n%%sniffed body\n' >"$SNIFFED_PDF_UPLOAD_FILE"
+printf 'mystery body\n' >"$UNKNOWN_UPLOAD_FILE"
+
+request POST "$BASE_URL" "" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -F "file=@$TEXT_UPLOAD_FILE;type=application/octet-stream;filename=$UPLOAD_OCTET_TXT_FILE_PATH" \
+  -F "path=$UPLOAD_OCTET_TXT_PATH"
+if [ "$LAST_STATUS" != "501" ]; then
+  expect_status 201
+  request GET "$BASE_URL/$UPLOAD_OCTET_TXT_FILE_PATH"
+  expect_status 200
+  expect_header_contains "^content-type: text/plain; charset=utf-8"
+
+  request POST "$BASE_URL" "" \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -F "file=@$PDF_UPLOAD_FILE;type=application/octet-stream;filename=$UPLOAD_OCTET_PDF_FILE_PATH" \
+    -F "path=$UPLOAD_OCTET_PDF_PATH"
+  expect_status 201
+  request GET "$BASE_URL/$UPLOAD_OCTET_PDF_FILE_PATH"
+  expect_status 200
+  expect_header_contains "^content-type: application/pdf"
+
+  request POST "$BASE_URL" "" \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -F "file=@$TEXT_UPLOAD_FILE;type=text/plain;filename=$UPLOAD_TRUSTED_TXT_FILE_PATH" \
+    -F "path=$UPLOAD_TRUSTED_TXT_PATH"
+  expect_status 201
+  request GET "$BASE_URL/$UPLOAD_TRUSTED_TXT_FILE_PATH"
+  expect_status 200
+  expect_header_contains "^content-type: text/plain"
+  expect_header_not_contains "^content-type: text/plain; charset=utf-8"
+
+  request POST "$BASE_URL" "" \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -F "file=@$SNIFFED_PDF_UPLOAD_FILE;type=application/octet-stream;filename=$UPLOAD_SNIFFED_PDF_FILE_PATH" \
+    -F "path=$UPLOAD_SNIFFED_PDF_PATH"
+  expect_status 201
+  request GET "$BASE_URL/$UPLOAD_SNIFFED_PDF_FILE_PATH"
+  expect_status 200
+  expect_header_contains "^content-type: application/pdf"
+
+  request POST "$BASE_URL" "" \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -F "file=@$UNKNOWN_UPLOAD_FILE;type=application/octet-stream;filename=$UPLOAD_UNKNOWN_FILE_PATH" \
+    -F "path=$UPLOAD_UNKNOWN_PATH"
+  expect_status 201
+  request GET "$BASE_URL/$UPLOAD_UNKNOWN_FILE_PATH"
+  expect_status 200
+  expect_header_contains "^content-type: application/octet-stream"
+
+  for path in \
+    "$UPLOAD_OCTET_TXT_FILE_PATH" \
+    "$UPLOAD_OCTET_PDF_FILE_PATH" \
+    "$UPLOAD_TRUSTED_TXT_FILE_PATH" \
+    "$UPLOAD_SNIFFED_PDF_FILE_PATH" \
+    "$UPLOAD_UNKNOWN_FILE_PATH"
+  do
+    request DELETE "$BASE_URL" "{\"path\":\"$path\"}" \
+      -H "Authorization: Bearer $SECRET_KEY" \
+      -H "Content-Type: application/json"
+    expect_status 200
+  done
+
+  log "文件上传 MIME 归一化通过"
 fi
 
 # Public behavior, cache headers, export mode, topic home guards
