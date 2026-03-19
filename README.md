@@ -77,7 +77,10 @@ npm start
 # Bump the package version
 npm run version:bump -- patch
 # or
-npm run version:bump -- 1.3.6
+npm run version:bump -- 1.4.0
+
+# Create a release tag after the version bump commit
+git tag -a v1.4.0 -m "v1.4.0"
 
 # Visit admin UI at <http://localhost:3000/admin>
 ```

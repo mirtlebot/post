@@ -141,3 +141,26 @@ Notes:
 - Use Conventional Commits.
 - Commit only after the related tests pass.
 - Do not revert unrelated user changes.
+
+## Release Process
+
+- Keep the package version in `package.json` and `package-lock.json` aligned by using:
+
+```bash
+npm run version:bump -- patch
+```
+
+- To set an explicit release version, use:
+
+```bash
+npm run version:bump -- 1.4.0
+```
+
+- For a normal release:
+  - finish and test the functional change
+  - commit the functional change first
+  - bump the version in a separate commit
+  - create an annotated git tag in the `vX.Y.Z` format after the version commit
+
+- Release commit messages should use Conventional Commits, for example:
+  - `chore(release): bump version to 1.4.0`
