@@ -197,6 +197,18 @@ test('refreshTopic can clear an existing title back to topic path', async () => 
   assert.equal(await getTopicDisplayTitle(redis, 'anime'), 'Anime');
 });
 
+test('refreshTopic re-adopts existing descendants before rebuilding', async () => {
+  const redis = new FakeRedis();
+  await createTopic(redis, 'anime');
+  await redis.set('surl:anime/branch/entry', buildStoredValue({ type: 'text', content: 'hello', title: 'Branch Entry' }));
+
+  await refreshTopic(redis, 'anime');
+
+  assert.equal(await countTopicItems(redis, 'anime'), 1);
+  const topicHome = parseStoredValue(await redis.get('surl:anime'));
+  assert.match(topicHome.content, /href="\/anime\/branch\/entry"/);
+});
+
 test('resolveTopicPath prefers the longest topic prefix', async () => {
   const redis = new FakeRedis();
   await redis.set('surl:blog', buildStoredValue({ type: 'topic', content: '<html></html>', title: 'blog' }));
@@ -267,6 +279,28 @@ test('writeTopicItem stores content, indexes member, and rebuilds topic home', a
   const storedTopic = parseStoredValue(await redis.get('surl:anime'));
   assert.equal(storedTopic.type, 'topic');
   assert.match(storedTopic.content, /href="\/anime\/castle"/);
+});
+
+test('writeTopicItem re-adopts orphaned descendants before rebuilding', async () => {
+  const redis = new FakeRedis();
+  await createTopic(redis, 'anime');
+  await redis.set('surl:anime/branch/entry', buildStoredValue({ type: 'text', content: 'hello', title: 'Branch Entry' }));
+
+  await writeTopicItem({
+    redis,
+    topicName: 'anime',
+    relativePath: 'castle',
+    fullPath: 'anime/castle',
+    storedValue: buildStoredValue({ type: 'text', content: 'hello', title: 'Castle' }),
+    allowOverwrite: false,
+    ttlSeconds: null,
+    clearPathCache: async () => {},
+  });
+
+  assert.equal(await countTopicItems(redis, 'anime'), 2);
+  const topicHome = parseStoredValue(await redis.get('surl:anime'));
+  assert.match(topicHome.content, /href="\/anime\/branch\/entry"/);
+  assert.match(topicHome.content, /href="\/anime\/castle"/);
 });
 
 test('writeTopicItem rolls back content when zadd fails', async () => {
@@ -405,6 +439,35 @@ test('deleteTopicItem removes content and updates the topic index', async () => 
   assert.equal(deletedEntry.type, 'text');
   assert.equal(await redis.get('surl:anime/castle'), null);
   assert.equal(await countTopicItems(redis, 'anime'), 0);
+});
+
+test('deleteTopicItem re-adopts orphaned descendants before rebuilding', async () => {
+  const redis = new FakeRedis();
+  await createTopic(redis, 'anime');
+  await writeTopicItem({
+    redis,
+    topicName: 'anime',
+    relativePath: 'castle',
+    fullPath: 'anime/castle',
+    storedValue: buildStoredValue({ type: 'text', content: 'hello', title: 'Castle' }),
+    allowOverwrite: false,
+    ttlSeconds: null,
+    clearPathCache: async () => {},
+  });
+  await redis.set('surl:anime/branch/entry', buildStoredValue({ type: 'text', content: 'hello', title: 'Branch Entry' }));
+
+  await deleteTopicItem({
+    redis,
+    topicName: 'anime',
+    relativePath: 'castle',
+    fullPath: 'anime/castle',
+    clearPathCache: async () => {},
+  });
+
+  assert.equal(await redis.get('surl:anime/castle'), null);
+  assert.equal(await countTopicItems(redis, 'anime'), 1);
+  const topicHome = parseStoredValue(await redis.get('surl:anime'));
+  assert.match(topicHome.content, /href="\/anime\/branch\/entry"/);
 });
 
 test('deleteTopicItem rolls back when zrem fails', async () => {

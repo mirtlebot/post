@@ -72,6 +72,7 @@ TTL_MAX_PATH="ttl-max-$(date +%s)-$$"
 TTL_TOPIC_CONFLICT_PATH="ttl-topic-conflict-$(date +%s)-$$"
 TTL_TOPIC_PATH="ttl-topic-$(date +%s)-$$"
 TTL_TOPIC_ITEM_PATH="$TTL_TOPIC_PATH/entry"
+TTL_TOPIC_ORPHAN_PATH="$TTL_TOPIC_PATH/branch/entry"
 
 cleanup() {
   local path
@@ -100,6 +101,7 @@ cleanup() {
     "$TTL_MAX_PATH" \
     "$TTL_TOPIC_CONFLICT_PATH" \
     "$TTL_TOPIC_ITEM_PATH" \
+    "$TTL_TOPIC_ORPHAN_PATH" \
     "$UPLOAD_PATH" \
     "$UPLOAD_FILE_PATH" \
     "$UPLOAD_OCTET_TXT_PATH" \
@@ -946,6 +948,26 @@ expect_body_contains "\"content\":\"0\""
 TTL_TOPIC_ZCARD="$(redis-cli -n "$REDIS_DB" ZCARD "topic:$TTL_TOPIC_PATH:items")"
 expect_equals "$TTL_TOPIC_ZCARD" "1"
 log "topic refresh 清理 stale member 通过"
+
+CURRENT_STEP="topic refresh 重新扫描漏掉的后代条目"
+request POST "$BASE_URL" "{\"path\":\"$TTL_TOPIC_ORPHAN_PATH\",\"url\":\"hello adopted later\",\"type\":\"text\"}" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json"
+expect_status 201
+request GET "$BASE_URL" "{\"path\":\"$TTL_TOPIC_PATH\",\"type\":\"topic\"}" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json"
+expect_status 200
+expect_body_contains "\"content\":\"1\""
+request PUT "$BASE_URL" "{\"path\":\"$TTL_TOPIC_PATH\",\"type\":\"topic\"}" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json"
+expect_status 200
+expect_body_contains "\"content\":\"1\""
+request GET "$BASE_URL/$TTL_TOPIC_PATH" ""
+expect_status 200
+expect_body_contains "branch/entry"
+log "topic refresh 重新扫描漏掉的后代条目 通过"
 
 CURRENT_STEP="DELETE type/convert 冲突"
 request DELETE "$BASE_URL" "{\"path\":\"$TTL_ZERO_PATH\",\"type\":\"topic\",\"convert\":\"text\"}" \
